@@ -2,7 +2,8 @@
   "name": "aloskill-backend",
   "version": "1.0.0",
   "description": "Aloskill Learning Management System",
-  "main": "src/server.ts",
+  "type": "module",
+  "main": "dist/server.js",
   "author": "Sumaiya Ahmed",
   "engines": {
     "node": ">=18.0.0",
@@ -10,35 +11,29 @@
   },
   "scripts": {
     "prepare": "husky install",
-    "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
+    "dev": "tsx watch src/server.ts",
     "clean": "rimraf dist",
     "build": "npm run clean && tsc",
     "start": "node dist/server.js",
     "typecheck": "tsc --noEmit",
-
-    "lint:check": "eslint --ext .js,.ts src",
+    "lint:check": "eslint --ext .js,.ts src .",
     "lint:fix": "eslint --ext .js,.ts src --fix",
     "prettier:check": "prettier --check \"src/**/*.{ts,js,json,css}\"",
     "prettier:fix": "prettier --write \"src/**/*.{ts,js,json,css}\"",
-
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate dev",
     "db:studio": "prisma studio",
     "db": "run-p db:generate db:push",
-
     "security:audit": "npm audit",
     "security:fix": "npm audit fix",
     "security": "run-p security:*",
-
     "logs:clear": "rimraf logs/*.log",
-    
     "check-lint-prettier": "run-p lint:check prettier:check",
     "check-all": "run-p typecheck lint:check prettier:check security:audit",
     "format-all": "run-p lint:fix prettier:fix"
   },
   "dependencies": {
-    "@prisma/client": "^6.16.1",
     "bcryptjs": "^3.0.2",
     "compression": "^1.8.1",
     "cookie-parser": "^1.4.7",
@@ -60,6 +55,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.35.0",
+    "@prisma/client": "^6.16.2",
     "@types/bcryptjs": "^3.0.0",
     "@types/compression": "^1.8.1",
     "@types/cookie-parser": "^1.4.9",
@@ -85,10 +81,11 @@
     "lint-staged": "^16.1.6",
     "npm-run-all": "^4.1.5",
     "prettier": "^3.6.2",
-    "prisma": "^6.16.1",
+    "prisma": "^6.16.2",
     "rimraf": "^6.0.1",
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",
+    "tsx": "^4.20.5",
     "typescript": "^5.9.2",
     "typescript-eslint": "^8.43.0"
   },
