@@ -1,4 +1,4 @@
-import type { JwtPayload } from '@/types/jwt.js';
+import type { JwtPayload } from '@/types/jwt.types.js';
 import { HttpStatus } from '@/types/shared.js';
 import JwtService from '@/utils/jwt.js';
 import type { NextFunction, Request, RequestHandler, Response } from 'express';

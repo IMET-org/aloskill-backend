@@ -4,7 +4,7 @@ import {
   JwtInvalidError,
   JwtMissingError,
 } from '@/middleware/errorHandler.js';
-import type { JwtPayload, TokenOptions, TokenPair, TokenType } from '@/types/jwt.js';
+import type { JwtPayload, TokenOptions, TokenPair, TokenType } from '@/types/jwt.types.js';
 import jwt from 'jsonwebtoken';
 import { config } from '../config/env.js';
 
