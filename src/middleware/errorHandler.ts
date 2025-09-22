@@ -1,13 +1,11 @@
 import { config } from '@/config/env.js';
-import type { SafeZodIssue, ZIssueLike } from '@/types/errorHandler.js';
+import type { SafeZodIssue, ZIssueLike } from '@/types/errorHandler.types.js';
 import { HttpStatus } from '@/types/shared.js';
 import { Prisma } from '@prisma/client';
 import type { ErrorRequestHandler, RequestHandler } from 'express';
 import { ZodError } from 'zod';
 import { errorlogger } from '../utils/logger.js';
 import ResponseHandler from '../utils/response.js';
-import { HttpStatus } from '@/types/shared.js';
-import type { SafeZodIssue, ZIssueLike } from '@/types/errorHandler.types.js';
 
 export class AppError extends Error {
   public readonly statusCode: number;
