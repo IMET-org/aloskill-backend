@@ -74,6 +74,26 @@ const defaultOptions: Required<ConnectionOptions> = {
 };
 
 /**
+ * Safely convert unknown error to Error instance
+ */
+const toError = (error: unknown): Error => {
+  if (error instanceof Error) {
+    return error;
+  }
+  return new Error(String(error));
+};
+
+/**
+ * Safely get error message from unknown error
+ */
+const getErrorMessage = (error: unknown): string => {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  return String(error);
+};
+
+/**
  * Get current database configuration
  */
 const getConfig = (customConfig?: Partial<DatabaseConfig>): DatabaseConfig => {
@@ -257,7 +277,7 @@ const handleConnectionLoss = (options: Required<ConnectionOptions>): void => {
         console.info('✅ Database reconnection successful');
       })
       .catch(error => {
-        console.error('❌ Reconnection failed:', error);
+        console.error('❌ Reconnection failed:', getErrorMessage(error));
         scheduleReconnect(options);
       });
   }, options.retryDelay);
@@ -277,7 +297,7 @@ const startHealthCheck = (): void => {
         }
       })
       .catch(error => {
-        console.error('❌ Health check error:', error);
+        console.error('❌ Health check error:', getErrorMessage(error));
       });
   }, 30000); // Check every 30 seconds
 };
@@ -334,7 +354,7 @@ export const connectDatabase = async (
       console.info(`✅ Database connected successfully (attempt ${attempt}/${options.maxRetries})`);
       return prismaClient;
     } catch (error) {
-      lastError = error instanceof Error ? error : new Error(String(error));
+      lastError = toError(error);
       connectionState = 'error';
 
       console.warn(
@@ -376,7 +396,7 @@ export const disconnectDatabase = async (): Promise<void> => {
 
       console.info('📤 Database disconnected successfully');
     } catch (error) {
-      console.error('❌ Error during database disconnection:', error);
+      console.error('❌ Error during database disconnection:', getErrorMessage(error));
     } finally {
       prismaClient = null;
       connectionState = 'disconnected';
@@ -427,7 +447,7 @@ export const checkDatabaseHealth = async (): Promise<boolean> => {
     ]);
     return true;
   } catch (error) {
-    console.error('❌ Database health check failed:', error);
+    console.error('❌ Database health check failed:', getErrorMessage(error));
 
     // Handle connection loss
     const options = getOptions();
@@ -457,7 +477,7 @@ export const executeDbOperation = async <T>(
       createTimeoutPromise<T>(options.queryTimeout, `${operationName} timeout`),
     ]);
   } catch (error) {
-    const dbError = error instanceof Error ? error : new Error(String(error));
+    const dbError = toError(error);
 
     // Handle connection-related errors
     if (isConnectionError(dbError)) {

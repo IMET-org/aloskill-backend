@@ -18,6 +18,10 @@ app.get('/health', (req, res) => {
   });
 });
 
+if (process.env.NODE_ENV === 'production') {
+  app.set('trust proxy', true);
+}
+
 // Basic middleware
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));

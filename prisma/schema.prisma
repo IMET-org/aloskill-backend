@@ -84,7 +84,7 @@ model User {
 // === JWT REFRESH TOKENS ===
 model RefreshToken {
   id        String   @id @default(uuid())
-  token     String   @unique
+  token     String   
   createdAt DateTime @default(now())
   expiresAt DateTime
   
@@ -95,6 +95,7 @@ model RefreshToken {
   // === USER RELATIONSHIP ===
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([userId, userAgent, ipAddress])
   
   @@map("refresh_tokens")
   @@index([token])
