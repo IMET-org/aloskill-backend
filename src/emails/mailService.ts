@@ -34,7 +34,7 @@ export const MailService = {
 };
 
 const emailOptions = {
-  to: 'user@example.com',
+  to: process.env.TEST_EMAIL!,
   subject: 'Welcome to Aloskill!',
   html: signupWelcomeTemplate({
     name: 'Sumaiya',

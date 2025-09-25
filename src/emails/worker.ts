@@ -9,7 +9,7 @@ new Worker<EmailOptions>(
   async job => {
     const provider = getMailProvider();
     await provider.sendEmail(job.data);
-    console.log(`Email sent to ${job.data.to}`);
+    console.log(`Email sent to from worker ${job.data.to}`);
   },
   { connection: redisConnection }
 );

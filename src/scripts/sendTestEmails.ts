@@ -7,11 +7,17 @@ const TEST_EMAIL = process.env.TEST_EMAIL || 'zeroboolean@gmail.com';
 
 async function sendEmails() {
   // Welcome email
-  await MailService.sendEmail(TEST_EMAIL, '🎉 Welcome to Aloskill!', signupWelcomeTemplate, {
-    name: 'Sumaiya',
-    verificationLink: 'http://localhost:5000/api/v1/auth/verify?token=abc123',
-  });
-  console.log(`📨 Signup welcome email queued! Sent to ${TEST_EMAIL}`);
+  await MailService.sendEmail(
+    TEST_EMAIL!,
+    'Welcome to Aloskill!',
+    signupWelcomeTemplate,
+    {
+      name: 'Sumaiya',
+      verificationLink: 'http://localhost:5000/api/v1/auth/verify?token=abc123',
+    }
+  );
+
+  console.log('📨 Signup welcome email queued!');
 
   // Reset password email
   await MailService.sendEmail(TEST_EMAIL, '🔑 Reset Your Password', resetPasswordTemplate, {

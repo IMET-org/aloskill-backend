@@ -6,7 +6,7 @@ const resendClient = new Resend(process.env.RESEND_API_KEY!);
 export class ResendProvider implements IMailProvider {
   async sendEmail({ to, subject, html, from }: EmailOptions) {
     await resendClient.emails.send({
-      from: from || 'noreply@aloskill.com',
+      from: from || 'sandbox@resend.dev',
       to,
       subject,
       html,
