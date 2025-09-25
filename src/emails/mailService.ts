@@ -33,7 +33,8 @@ export const MailService = {
   },
 };
 
-const emailOptions = {
+export const emailOptions = {
+  // from: 'Acme <onboarding@resend.dev>',
   to: process.env.TEST_EMAIL!,
   subject: 'Welcome to Aloskill!',
   html: signupWelcomeTemplate({
@@ -42,13 +43,18 @@ const emailOptions = {
   }),
 };
 
-await MailService.sendEmail(emailOptions.to, emailOptions.subject, signupWelcomeTemplate, {
-  name: 'Sumaiya',
-  verificationLink: 'https://aloskill.com/verify?token=abc123',
-});
+// await MailService.sendEmail(emailOptions.to, emailOptions.subject, signupWelcomeTemplate, {
+//   name: 'Sumaiya',
+//   verificationLink: 'https://aloskill.com/verify?token=abc123',
+// });
 
 // For reset password
-await MailService.sendEmail('user@example.com', 'Reset Your Password', resetPasswordTemplate, {
-  name: 'Sumaiya',
-  resetLink: 'https://aloskill.com/reset-password?token=xyz456',
-});
+// await MailService.sendEmail(
+//   'zeroboolean@gmail.comm',
+//   'Reset Your Password',
+//   resetPasswordTemplate,
+//   {
+//     name: 'Sumaiya',
+//     resetLink: 'https://aloskill.com/reset-password?token=xyz456',
+//   }
+// );

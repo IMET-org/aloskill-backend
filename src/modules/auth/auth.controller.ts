@@ -2,7 +2,6 @@
 import { MailService } from '@/emails/mailService.js';
 import signupWelcomeTemplate from '@/emails/templates/signupWelcome.js';
 import { asyncHandler } from '@/utils/asyncHandler.js';
-import CookieService from '@/utils/cookies.js';
 import { authService } from './auth.service.js';
 
 const loginUser = asyncHandler(async (req, res): Promise<void> => {
@@ -11,19 +10,23 @@ const loginUser = asyncHandler(async (req, res): Promise<void> => {
 });
 
 const registerUser = asyncHandler(async (req, res): Promise<void> => {
-  const { email, role, ...payload } = req.body;
-  const result = await authService.registerUser({ email, role });
-  CookieService.setAuthCookies(res, result.accessToken, result.refreshToken);
+  // const { email, role, ...payload } = req.body;
+  // const result = await authService.registerUser({ email, role });
+  // CookieService.setAuthCookies(res, result.accessToken, result.refreshToken);
 
   // 3. Queue welcome email
-  await MailService.sendEmail(email, 'Welcome to AAAloskill!', signupWelcomeTemplate, {
-    name: registerUser.name,
-    verificationLink: `http://localhost:5000/api/v1/auth/verify?token=${result.accessToken}`,
-  });
+  await MailService.sendEmail(
+    'zeroboolean@gmail.com',
+    'Welcome to AAAloskill!',
+    signupWelcomeTemplate,
+    {
+      name: registerUser.name,
+      verificationLink: `http://localhost:5000/api/v1/auth/verify?token=123`,
+    }
+  );
 
   res.json({
     message: 'Signup successful! Please check your email to verify your account.',
-    result,
   });
 });
 
