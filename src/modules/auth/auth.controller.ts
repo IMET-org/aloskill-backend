@@ -12,6 +12,10 @@ const registerUser = asyncHandler(async (req, res): Promise<void> => {
   const { email, role, ...payload } = req.body;
   const result = await authService.registerUser({ email, role });
   CookieService.setAuthCookies(res, result.accessToken, result.refreshToken);
+  
+
+
+  
   res.json({ message: 'Register successful', result });
 });
 
