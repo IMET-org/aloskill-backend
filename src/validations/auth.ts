@@ -27,3 +27,32 @@ export const registerSchema = z.object({
     phoneNumber: z.string().max(14, 'Phone Number must be less than 14 characters').optional(),
   }),
 });
+
+export const verifyUserSchema = z.object({
+  body: z.object({
+    id: z.string('ID is required'),
+    token: z.string('Token is required'),
+  }),
+});
+
+export const forgotSchema = z.object({
+  body: z.object({
+    email: z.email('Invalid email address'),
+  }),
+});
+
+export const resetSchema = z.object({
+  body: z.object({
+    oldPassword: z.string().min(8, 'Old Password must be at least 8 characters'),
+    newPassword: z
+      .string()
+      .min(8, 'Password must be at least 8 characters')
+      .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
+      .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
+      .regex(/[0-9]/, 'Password must contain at least one number'),
+  }),
+  query: z.object({
+    id: z.string('UserId not found'),
+    token: z.string('Reset Token not found'),
+  }),
+});

@@ -1,11 +1,11 @@
 /* eslint-disable @typescript-eslint/no-unnecessary-condition */
+import { MailService } from '@/emails/mailService.js';
+import signupWelcomeTemplate from '@/emails/templates/signupWelcome.js';
 import catchAsync from '@/utils/asyncHandler.js';
 import CookieService from '@/utils/cookies.js';
 import JwtService from '@/utils/jwt.js';
-import { authService } from './auth.service.js';
-import { MailService } from '@/emails/mailService.js';
-import signupWelcomeTemplate from '@/emails/templates/signupWelcome.js';
 import ResponseHandler from '@/utils/response.js';
+import { authService } from './auth.service.js';
 
 const loginUser = catchAsync(async (req, res): Promise<void> => {
   const result = await authService.loginUser(req);
@@ -100,8 +100,20 @@ const verifyUser = catchAsync(async (req, res): Promise<void> => {
   ResponseHandler.ok(res, 'User Verified Successfully', result);
 });
 
+const forgotPassword = catchAsync(async (req, res): Promise<void> => {
+  const result = await authService.forgotPassword(req);
+  ResponseHandler.ok(res, 'Check your email for password reset link', result);
+});
+
+const resetPassword = catchAsync(async (req, res): Promise<void> => {
+  const result = await authService.resetPassword(req);
+  ResponseHandler.ok(res, 'Password Reseted Successfully', result);
+});
+
 export const authController = {
   loginUser,
   registerUser,
   verifyUser,
+  forgotPassword,
+  resetPassword,
 };
