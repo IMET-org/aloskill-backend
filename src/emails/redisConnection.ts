@@ -1,15 +1,14 @@
 import { Redis } from 'ioredis';
-import "dotenv/config";
+import { config } from '@/config/env.js';
 
 const redisConnection = new Redis({
-  host: process.env.REDIS_HOST,
-  port: Number(process.env.REDIS_PORT),
-  password: process.env.REDIS_PASSWORD,
+  host: config.REDIS_HOST,
+  port: Number(config.REDIS_PORT),
+  password: config.REDIS_PASSWORD,
   // tls: {}, // ✅ required for Redis Cloud SSL - commented out for local Redis
   maxRetriesPerRequest: null,
   enableReadyCheck: false,
 });
-console.log(process.env.REDIS_HOST, process.env.REDIS_PORT);
 redisConnection.on('connect', () => {
   console.log('✅ Connected to Redis Cloud');
 });

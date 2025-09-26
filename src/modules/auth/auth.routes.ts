@@ -1,9 +1,8 @@
-import express from "express";
-import { authController } from "./auth.controller.js";
-import { authLimiter } from "@/middleware/security.js";
-import { requireAuth } from "@/middleware/auth.js";
-import { validate } from "@/middleware/validation.js";
-import { loginSchema, registerSchema } from "@/validations/auth.js";
+import express from 'express';
+import { authController } from './auth.controller.js';
+import { authLimiter } from '@/middleware/security.js';
+import { validate } from '@/middleware/validation.js';
+import { loginSchema, registerSchema } from '@/validations/auth.js';
 
 const router = express.Router({ caseSensitive: true });
 
@@ -11,8 +10,9 @@ const router = express.Router({ caseSensitive: true });
 router.use(authLimiter);
 
 //routes
-router.post('/login', requireAuth, validate(loginSchema), authController.loginUser);
+router.post('/login', validate(loginSchema), authController.loginUser);
 router.post('/register', validate(registerSchema), authController.registerUser);
+router.post('/verify', authController.verifyUser);
 
 //named export
 export const AuthRoutes = router;

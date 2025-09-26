@@ -1,3 +1,8 @@
+<<<<<<< HEAD
+=======
+/* eslint-disable @typescript-eslint/explicit-module-boundary-types */
+/* eslint-disable @typescript-eslint/explicit-function-return-type */
+>>>>>>> 9336b8479e039cf93f88af490909248d1d57f515
 interface SignupWelcomeProps {
   name: string;
   verificationLink: string;

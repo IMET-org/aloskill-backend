@@ -1,6 +1,5 @@
 import { Worker } from 'bullmq';
-import 'dotenv/config';
-import { EmailOptions } from '../types/mail.js';
+import type { EmailOptions } from '../types/mail.js';
 import { getMailProvider } from './providerFactory.js';
 import redisConnection from './redisConnection.js';
 

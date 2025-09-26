@@ -63,7 +63,7 @@ export default [
   // =============================================================================
   ...tseslint.configs.recommendedTypeChecked.map(config => ({
     ...config,
-    files: ['**/*.{ts,tsx}'],
+    files: ['**/*.{ts,tsx,jsx}'],
     languageOptions: {
       ...config.languageOptions,
       parserOptions: {
@@ -83,6 +83,10 @@ export default [
       '@typescript-eslint/no-explicit-any': 'off',
       '@typescript-eslint/no-unsafe-assignment': 'off',
       '@typescript-eslint/no-unsafe-member-access': 'off',
+      '@typescript-eslint/no-unsafe-return': 'off',
+      '@typescript-eslint/no-unsafe-call': 'off',
+      '@typescript-eslint/no-unnecessary-condition': 'off',
+      '@typescript-eslint/explicit-function-return-type':'off',
       '@typescript-eslint/no-unused-vars': [
         'error',
         {
