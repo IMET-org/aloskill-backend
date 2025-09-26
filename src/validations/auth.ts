@@ -2,14 +2,9 @@ import { z } from 'zod';
 
 export const loginSchema = z.object({
   body: z.object({
-<<<<<<< HEAD
-    email: z.email('Invalid email address').includes('@gmail.com'),
-    password: z.string().min(8, 'Password must be at least 8 characters'),
-=======
     email: z.email('Invalid email address'),
     password: z.string().min(8, 'Password must be at least 8 characters').optional(),
     googleId: z.string().optional(),
->>>>>>> 9336b8479e039cf93f88af490909248d1d57f515
   }),
 });
 

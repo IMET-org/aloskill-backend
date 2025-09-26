@@ -1,11 +1,11 @@
 /* eslint-disable @typescript-eslint/no-unnecessary-condition */
+import { MailService } from '@/emails/mailService.js';
+import signupWelcomeTemplate from '@/emails/templates/signupWelcome.js';
 import catchAsync from '@/utils/asyncHandler.js';
 import CookieService from '@/utils/cookies.js';
 import JwtService from '@/utils/jwt.js';
-import { authService } from './auth.service.js';
-import { MailService } from '@/emails/mailService.js';
-import signupWelcomeTemplate from '@/emails/templates/signupWelcome.js';
 import ResponseHandler from '@/utils/response.js';
+import { authService } from './auth.service.js';
 
 const loginUser = catchAsync(async (req, res): Promise<void> => {
   const result = await authService.loginUser(req);
@@ -46,7 +46,10 @@ const registerUser = catchAsync(async (req, res): Promise<void> => {
   const result = await authService.registerUser(req);
 
   if (Array.isArray(result)) {
-    const [user, refreshToken] = result as [{ email: string; role: string }, { token: string }];
+    const [user, refreshToken] = result as [
+      { email: string; role: string; emailVerificationToken: string },
+      { token: string },
+    ];
 
     const accessToken = JwtService.generateToken(
       { email: user.email, role: user.role },
@@ -54,15 +57,10 @@ const registerUser = catchAsync(async (req, res): Promise<void> => {
     );
     CookieService.setAuthCookies(res, accessToken, refreshToken.token);
 
-    await MailService.sendEmail(
-      'mdarifulislam0238@gmail.com',
-      'Welcome to Aloskill!',
-      signupWelcomeTemplate,
-      {
-        name: 'Ariful islam',
-        verificationLink: `http://localhost:5000/api/v1/auth/verify?token=123`,
-      }
-    );
+    await MailService.sendEmail(user.email, 'Welcome to Aloskill!', signupWelcomeTemplate, {
+      name: 'Sumaiya Ahmed',
+      verificationLink: `http://localhost:5000/api/v1/auth/verify-user?id=${user.id}&token=${user.emailVerificationToken}`,
+    });
     ResponseHandler.ok(res, 'Register Successful', user);
     return;
   }
@@ -83,15 +81,10 @@ const registerUser = catchAsync(async (req, res): Promise<void> => {
   );
   CookieService.setAuthCookies(res, accessToken, refreshTokens[0].token);
 
-  await MailService.sendEmail(
-    'mdarifulislam0238@gmail.com',
-    'Welcome to Aloskill!',
-    signupWelcomeTemplate,
-    {
-      name: 'Ariful islam',
-      verificationLink: `http://localhost:5000/api/v1/auth/verify?token=123`,
-    }
-  );
+  await MailService.sendEmail(result.email, 'Welcome to Aloskill!', signupWelcomeTemplate, {
+    name: 'Sumaiya Ahmed',
+    verificationLink: `http://localhost:5000/api/v1/auth/verify-user?id=${result.id}&token=${result.emailVerificationToken}`,
+  });
   ResponseHandler.ok(res, 'Register Successful', result);
 });
 

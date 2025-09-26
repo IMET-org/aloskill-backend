@@ -1,9 +1,6 @@
-<<<<<<< HEAD
-=======
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
 
->>>>>>> 9336b8479e039cf93f88af490909248d1d57f515
 interface ResetPasswordProps {
   name: string;
   resetLink: string;
