@@ -257,6 +257,7 @@ const registerUser = async (req: Request) => {
     if (existingUser.googleId) {
       throw new Error('User already exists');
     }
+
     const updateUserWithGoogleID = await executeDbOperation(async prisma => {
       return prisma.$transaction([
         prisma.user.update({
@@ -265,6 +266,10 @@ const registerUser = async (req: Request) => {
           },
           data: {
             googleId: googleId as string,
+            emailVerificationToken: null,
+            emailVerificationExpires: null,
+            isEmailVerified: true,
+            status: UserStatus.ACTIVE,
           },
         }),
         prisma.refreshToken.upsert({
