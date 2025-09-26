@@ -78,7 +78,9 @@ const loginUser = async (req: Request) => {
   }
 
   if (data.password) {
-    if (user.lockUntil && user.lockUntil > new Date()) {
+    if (!user.isEmailVerified) {
+      throw new Error('Please Verify Your Email');
+    } else if (user.lockUntil && user.lockUntil > new Date()) {
       throw new Error(`Account locked. Try again after ${user.lockUntil.toLocaleTimeString()}`);
     }
 
@@ -164,7 +166,7 @@ const registerUser = async (req: Request) => {
   const userInfo = getClientInfo(req);
 
   const existingUser = await executeDbOperation(async prisma => {
-    return prisma.user.findFirst({
+    return prisma.user.findUnique({
       where: {
         // OR: [{ email: data.email ?? '' }, { googleId: data.googleId ?? '' }],
         email: data.email,
@@ -292,7 +294,7 @@ const registerUser = async (req: Request) => {
 };
 
 const verifyUser = async (req: Request) => {
-  const { id, token } = req.query;
+  const { id, token } = req.body;
 
   if (!id || typeof id !== 'string') {
     throw new Error('Invalid User');
@@ -338,8 +340,92 @@ const verifyUser = async (req: Request) => {
   }
 };
 
+const forgotPassword = async (req: Request) => {
+  const { email } = req.body;
+
+  const user = await executeDbOperation(async prisma => {
+    return prisma.user.findUnique({
+      where: {
+        email,
+      },
+    });
+  }, 'find User in forgot password');
+
+  if (!user) {
+    throw new Error('User Does Not Exist');
+  } else {
+    if (!user.password) {
+      throw new Error('User not registered');
+    } else if (!user.isEmailVerified) {
+      throw new Error('Please Verify Your Email first');
+    } else {
+      const refreshToken = crypto.randomBytes(64).toString('hex');
+
+      const forgotPasswordUser = await executeDbOperation(async prisma => {
+        return prisma.user.update({
+          where: {
+            id: user.id,
+          },
+          data: {
+            passwordResetToken: refreshToken,
+            passwordResetExpires: new Date(Date.now() + 6 * 60 * 60 * 1000),
+          },
+        });
+      }, 'Forgot Password');
+      return forgotPasswordUser;
+    }
+  }
+};
+
+const resetPassword = async (req: Request) => {
+  const { oldPassword, newPassword } = req.body;
+  const { id, token } = req.query;
+
+  const user = await executeDbOperation(async prisma => {
+    return prisma.user.findUnique({
+      where: {
+        id: id as string,
+      },
+    });
+  }, 'find User in Reset Password');
+
+  if (!user) {
+    throw new Error('User Not Found');
+  }
+  if (user.passwordResetToken !== token) {
+    throw new Error('Invalid Reset Token');
+  } else {
+    if (new Date(user.passwordResetExpires as unknown as number) < new Date()) {
+      throw new Error('Password Reset Link Expired');
+    } else {
+      const isOldPasswordValid = await verifyHash(oldPassword as string, user.password as string);
+      if (!isOldPasswordValid) {
+        throw new Error('Invalid Old Password');
+      } else {
+        const hashedNewPassword = await hash(newPassword as string);
+        const updatedUser = await executeDbOperation(async prisma => {
+          return prisma.user.update({
+            where: {
+              id: user.id,
+            },
+            data: {
+              password: hashedNewPassword,
+              passwordChangedAt: new Date(),
+              passwordResetToken: null,
+              passwordResetExpires: null,
+            },
+          });
+        }, 'updatedUser in Reset Password');
+        return updatedUser;
+      }
+    }
+  }
+};
+
 export const authService = {
   loginUser,
   registerUser,
   verifyUser,
+  forgotPassword,
+  resetPassword,
 };
