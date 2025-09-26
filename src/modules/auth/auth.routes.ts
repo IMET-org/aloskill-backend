@@ -12,6 +12,7 @@ router.use(authLimiter);
 //routes
 router.post('/login', validate(loginSchema), authController.loginUser);
 router.post('/register', validate(registerSchema), authController.registerUser);
+router.post('/verify', authController.verifyUser);
 
 //named export
 export const AuthRoutes = router;

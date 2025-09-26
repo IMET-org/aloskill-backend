@@ -1,9 +1,11 @@
+/* eslint-disable @typescript-eslint/no-unnecessary-condition */
 import catchAsync from '@/utils/asyncHandler.js';
 import CookieService from '@/utils/cookies.js';
 import JwtService from '@/utils/jwt.js';
 import { authService } from './auth.service.js';
 import { MailService } from '@/emails/mailService.js';
 import signupWelcomeTemplate from '@/emails/templates/signupWelcome.js';
+import ResponseHandler from '@/utils/response.js';
 
 const loginUser = catchAsync(async (req, res): Promise<void> => {
   const result = await authService.loginUser(req);
@@ -17,7 +19,7 @@ const loginUser = catchAsync(async (req, res): Promise<void> => {
     );
     CookieService.setAuthCookies(res, accessToken, refreshToken.token);
 
-    res.json({ message: 'Login successful', result: user });
+    ResponseHandler.ok(res, 'Login Successful', user);
     return;
   }
 
@@ -37,7 +39,7 @@ const loginUser = catchAsync(async (req, res): Promise<void> => {
   );
   CookieService.setAuthCookies(res, accessToken, refreshTokens[0].token);
 
-  res.json({ message: 'Login successful', result });
+  ResponseHandler.ok(res, 'Login Successful', result);
 });
 
 const registerUser = catchAsync(async (req, res): Promise<void> => {
@@ -61,7 +63,7 @@ const registerUser = catchAsync(async (req, res): Promise<void> => {
         verificationLink: `http://localhost:5000/api/v1/auth/verify?token=123`,
       }
     );
-    res.json({ message: 'Register successful', result: user });
+    ResponseHandler.ok(res, 'Register Successful', user);
     return;
   }
 
@@ -90,10 +92,16 @@ const registerUser = catchAsync(async (req, res): Promise<void> => {
       verificationLink: `http://localhost:5000/api/v1/auth/verify?token=123`,
     }
   );
-  res.json({ message: 'Register successful', result });
+  ResponseHandler.ok(res, 'Register Successful', result);
+});
+
+const verifyUser = catchAsync(async (req, res): Promise<void> => {
+  const result = await authService.verifyUser(req);
+  ResponseHandler.ok(res, 'User Verified Successfully', result);
 });
 
 export const authController = {
   loginUser,
   registerUser,
+  verifyUser,
 };

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unnecessary-condition */
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
 /* eslint-disable require-await */
@@ -290,7 +291,55 @@ const registerUser = async (req: Request) => {
   }
 };
 
+const verifyUser = async (req: Request) => {
+  const { id, token } = req.query;
+
+  if (!id || typeof id !== 'string') {
+    throw new Error('Invalid User');
+  }
+
+  if (!token || typeof token !== 'string') {
+    throw new Error('Invalid Token');
+  }
+
+  const user = await executeDbOperation(async prisma => {
+    return prisma.user.findUnique({
+      where: {
+        id,
+      },
+    });
+  });
+
+  if (!user) {
+    throw new Error('User Does Not Exist');
+  } else {
+    if (user.emailVerificationToken !== token) {
+      throw new Error('Invalid Verification Link');
+    } else {
+      if (new Date(user.emailVerificationExpires as unknown as number) < new Date()) {
+        throw new Error('Link Expired');
+      } else {
+        const updateUser = await executeDbOperation(async prisma => {
+          return prisma.user.update({
+            where: {
+              id,
+            },
+            data: {
+              isEmailVerified: true,
+              status: UserStatus.ACTIVE,
+              emailVerificationToken: null,
+              emailVerificationExpires: null,
+            },
+          });
+        }, 'Verify Email');
+        return updateUser;
+      }
+    }
+  }
+};
+
 export const authService = {
   loginUser,
   registerUser,
+  verifyUser,
 };
