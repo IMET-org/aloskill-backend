@@ -141,9 +141,8 @@ const logoutCurrentDevice = catchAsync(async (req, res): Promise<void> => {
 // === Logout all devices ===
 const logoutAllDevices = catchAsync(async (req, res): Promise<void> => {
   const result = await authService.logoutAllDevices(req);
-  console.log('dfdsf', result);
   CookieService.clearAuthCookies(res);
-  ResponseHandler.ok(res, 'Logged out from all devices');
+  ResponseHandler.ok(res, 'Logged out from all devices', result);
 });
 
 export const authController = {
