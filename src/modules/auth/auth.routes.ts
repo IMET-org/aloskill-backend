@@ -21,6 +21,7 @@ router.post('/register', validate(registerSchema), authController.registerUser);
 router.post('/verify-user', validate(verifyUserSchema), authController.verifyUser);
 router.post('/forgot-password', validate(forgotSchema), authController.forgotPassword);
 router.post('/reset-password', validate(resetSchema), authController.resetPassword);
+router.post('/logout', validate(forgotSchema), authController.logoutUser);
 
 //named export
 export const AuthRoutes = router;

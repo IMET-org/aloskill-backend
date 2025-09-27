@@ -422,10 +422,15 @@ const resetPassword = async (req: Request) => {
   }
 };
 
+const logoutUser = async (req: Request) => {
+  const { email } = req.body;
+};
+
 export const authService = {
   loginUser,
   registerUser,
   verifyUser,
   forgotPassword,
   resetPassword,
+  logoutUser,
 };

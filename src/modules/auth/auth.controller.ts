@@ -110,10 +110,16 @@ const resetPassword = catchAsync(async (req, res): Promise<void> => {
   ResponseHandler.ok(res, 'Password Reseted Successfully', result);
 });
 
+const logoutUser = catchAsync(async (req, res): Promise<void> => {
+  const result = await authService.logoutUser(req);
+  ResponseHandler.ok(res, 'Logout Successfully', result);
+});
+
 export const authController = {
   loginUser,
   registerUser,
   verifyUser,
   forgotPassword,
   resetPassword,
+  logoutUser,
 };
