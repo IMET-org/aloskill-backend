@@ -121,10 +121,37 @@ const resetPassword = catchAsync(async (req, res): Promise<void> => {
   ResponseHandler.ok(res, 'Password Reseted Successfully', result);
 });
 
+// === Logout current device ===
+const logoutCurrentDevice = catchAsync(async (req, res): Promise<void> => {
+  const result = await authService.logoutCurrentDevice(req);
+
+  res.clearCookie('refreshToken', {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict',
+  });
+
+  if (result.alreadyLoggedOut) {
+    ResponseHandler.ok(res, 'Already logged out');
+  } else {
+    ResponseHandler.ok(res, 'Logged out from current device');
+  }
+});
+
+// === Logout all devices ===
+const logoutAllDevices = catchAsync(async (req, res): Promise<void> => {
+  const result = await authService.logoutAllDevices(req);
+  console.log('dfdsf', result);
+  CookieService.clearAuthCookies(res);
+  ResponseHandler.ok(res, 'Logged out from all devices');
+});
+
 export const authController = {
   loginUser,
   registerUser,
   verifyUser,
   forgotPassword,
   resetPassword,
+  logoutCurrentDevice,
+  logoutAllDevices,
 };

@@ -25,8 +25,8 @@ export class EmailRateLimiter {
     }
 
     // Check daily limit (max 5 per day)
-    if (dailyCount && parseInt(dailyCount, 10) >= 5) {
-      return { allowed: false, reason: 'Daily limit reached (5 emails per day)' };
+    if (dailyCount && parseInt(dailyCount, 10) >= 2) {
+      return { allowed: false, reason: 'Daily limit reached (2 emails per day)' };
     }
 
     return { allowed: true };

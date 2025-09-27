@@ -56,3 +56,14 @@ export const resetSchema = z.object({
     token: z.string('Reset Token not found'),
   }),
 });
+export const logoutCurrentDeviceSchema = z.object({
+  body: z.object({
+    refreshToken: z.string('Refresh token is required'),
+  }),
+});
+
+export const logoutAllDevicesSchema = z.object({
+  body: z.object({
+    email: z.string('User email is required'),
+  }),
+});
