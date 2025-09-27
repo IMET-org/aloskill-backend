@@ -127,7 +127,8 @@ export default [
           fixStyle: 'inline-type-imports',
         },
       ],
-      '@typescript-eslint/consistent-type-definitions': ['error', 'interface','type'],
+      // '@typescript-eslint/consistent-type-definitions': ['error', 'interface','type'],
+      '@typescript-eslint/consistent-type-definitions': off,
 
       // Async/await
       '@typescript-eslint/no-floating-promises': 'error',
