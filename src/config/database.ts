@@ -489,5 +489,5 @@ export const executeDbOperation = async <T>(
 };
 
 // Export types and error classes
-export type { LoggedPrismaClient, ConnectionState, DatabaseConfig, ConnectionOptions };
 export { DatabaseConnectionError, DatabaseQueryError };
+export type { ConnectionOptions, ConnectionState, DatabaseConfig, LoggedPrismaClient };

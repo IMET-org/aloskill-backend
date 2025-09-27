@@ -9,7 +9,6 @@ const redisConnection = new Redis({
   maxRetriesPerRequest: null,
   enableReadyCheck: false,
 });
-
 redisConnection.on('connect', () => {
   console.log('✅ Connected to Redis Cloud');
 });

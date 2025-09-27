@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unnecessary-condition */
 import { MailService } from '@/emails/mailService.js';
+import resetPasswordTemplate from '@/emails/templates/resetPassword.js';
 import signupWelcomeTemplate from '@/emails/templates/signupWelcome.js';
 import catchAsync from '@/utils/asyncHandler.js';
 import CookieService from '@/utils/cookies.js';
@@ -46,7 +47,10 @@ const registerUser = catchAsync(async (req, res): Promise<void> => {
   const result = await authService.registerUser(req);
 
   if (Array.isArray(result)) {
-    const [user, refreshToken] = result as [{ email: string; role: string }, { token: string }];
+    const [user, refreshToken] = result as [
+      { email: string; role: string; emailVerificationToken: string, id:string },
+      { token: string },
+    ];
 
     const accessToken = JwtService.generateToken(
       { email: user.email, role: user.role },
@@ -54,15 +58,12 @@ const registerUser = catchAsync(async (req, res): Promise<void> => {
     );
     CookieService.setAuthCookies(res, accessToken, refreshToken.token);
 
-    await MailService.sendEmail(
-      'mdarifulislam0238@gmail.com',
-      'Welcome to Aloskill!',
-      signupWelcomeTemplate,
-      {
-        name: 'Ariful islam',
-        verificationLink: `http://localhost:5000/api/v1/auth/verify?token=123`,
-      }
-    );
+    if (user.email && user.emailVerificationToken) {
+      await MailService.sendEmail(user.email, 'Welcome to Aloskill!', signupWelcomeTemplate, {
+        name: 'Sumaiya Ahmed',
+        verificationLink: `http://localhost:5000/api/v1/auth/verify-user?id=${user?.id}&token=${user?.emailVerificationToken}`,
+      });
+    }
     ResponseHandler.ok(res, 'Register Successful', user);
     return;
   }
@@ -74,6 +75,7 @@ const registerUser = catchAsync(async (req, res): Promise<void> => {
   const { email, role, refreshTokens } = result as {
     email: string;
     role: string;
+    emailVerificationToken: string;
     refreshTokens: { token: string }[];
   };
 
@@ -83,15 +85,13 @@ const registerUser = catchAsync(async (req, res): Promise<void> => {
   );
   CookieService.setAuthCookies(res, accessToken, refreshTokens[0].token);
 
-  await MailService.sendEmail(
-    'mdarifulislam0238@gmail.com',
-    'Welcome to Aloskill!',
-    signupWelcomeTemplate,
-    {
-      name: 'Ariful islam',
-      verificationLink: `http://localhost:5000/api/v1/auth/verify?token=123`,
-    }
-  );
+  if (result.email && result.emailVerificationToken) {
+    await MailService.sendEmail(result.email, 'Welcome to Aloskill!', signupWelcomeTemplate, {
+      name: 'Sumaiya Ahmed',
+      verificationLink: `http://localhost:5000/api/v1/auth/verify-user?id=${result?.id}&token=${result?.emailVerificationToken}`,
+    });
+  }
+
   ResponseHandler.ok(res, 'Register Successful', result);
 });
 
@@ -102,6 +102,17 @@ const verifyUser = catchAsync(async (req, res): Promise<void> => {
 
 const forgotPassword = catchAsync(async (req, res): Promise<void> => {
   const result = await authService.forgotPassword(req);
+  if (result) {
+    await MailService.sendEmail(
+      result.email,
+      'click here to reset your password',
+      resetPasswordTemplate,
+      {
+        name: 'Sumaiya Ahmed',
+        resetLink: `http://localhost:5000/api/v1/auth/verify-user?id=${result?.id}&token=${result?.passwordResetToken}`,
+      }
+    );
+  }
   ResponseHandler.ok(res, 'Check your email for password reset link', result);
 });
 
@@ -110,9 +121,28 @@ const resetPassword = catchAsync(async (req, res): Promise<void> => {
   ResponseHandler.ok(res, 'Password Reseted Successfully', result);
 });
 
-const logoutUser = catchAsync(async (req, res): Promise<void> => {
-  const result = await authService.logoutUser(req);
-  ResponseHandler.ok(res, 'Logout Successfully', result);
+// === Logout current device ===
+const logoutCurrentDevice = catchAsync(async (req, res): Promise<void> => {
+  const result = await authService.logoutCurrentDevice(req);
+
+  res.clearCookie('refreshToken', {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict',
+  });
+
+  if (result.alreadyLoggedOut) {
+    ResponseHandler.ok(res, 'Already logged out');
+  } else {
+    ResponseHandler.ok(res, 'Logged out from current device');
+  }
+});
+
+// === Logout all devices ===
+const logoutAllDevices = catchAsync(async (req, res): Promise<void> => {
+  const result = await authService.logoutAllDevices(req);
+  CookieService.clearAuthCookies(res);
+  ResponseHandler.ok(res, 'Logged out from all devices', result);
 });
 
 export const authController = {
@@ -121,5 +151,6 @@ export const authController = {
   verifyUser,
   forgotPassword,
   resetPassword,
-  logoutUser,
+  logoutCurrentDevice,
+  logoutAllDevices,
 };

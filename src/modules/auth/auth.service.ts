@@ -257,6 +257,7 @@ const registerUser = async (req: Request) => {
     if (existingUser.googleId) {
       throw new Error('User already exists');
     }
+
     const updateUserWithGoogleID = await executeDbOperation(async prisma => {
       return prisma.$transaction([
         prisma.user.update({
@@ -265,6 +266,10 @@ const registerUser = async (req: Request) => {
           },
           data: {
             googleId: googleId as string,
+            emailVerificationToken: null,
+            emailVerificationExpires: null,
+            isEmailVerified: true,
+            status: UserStatus.ACTIVE,
           },
         }),
         prisma.refreshToken.upsert({
@@ -421,9 +426,53 @@ const resetPassword = async (req: Request) => {
     }
   }
 };
+// === Logout from current device ===
+const logoutCurrentDevice = async (req: Request) => {
+  const refreshToken = req.cookies?.refreshToken || req.body.refreshToken;
 
-const logoutUser = async (req: Request) => {
-  const { email } = req.body;
+  if (!refreshToken || typeof refreshToken !== 'string') {
+    throw new Error('Invalid refresh token');
+  }
+
+  const tokenRecord = await executeDbOperation(async prisma => {
+    return prisma.refreshToken.findFirst({
+      where: { token: refreshToken },
+    });
+  }, 'Find Refresh Token');
+
+  if (!tokenRecord) {
+    // Already logged out
+    return { alreadyLoggedOut: true };
+  }
+
+  await executeDbOperation(async prisma => {
+    return prisma.refreshToken.delete({
+      where: { id: tokenRecord.id },
+    });
+  }, 'Delete Refresh Token');
+
+  return { alreadyLoggedOut: false };
+};
+
+// === Logout from all devices ===
+const logoutAllDevices = async (req: Request) => {
+  const { email } = req.body; // ✅ populated by auth middleware
+  const user = await executeDbOperation(async prisma => {
+    return prisma.user.findUnique({
+      where: { email },
+    });
+  }, 'Find User in Logout All Devices');
+  if (!user) {
+    throw new Error('User not found');
+  }
+
+  const deletedRefreshTokens = await executeDbOperation(async prisma => {
+    return prisma.refreshToken.deleteMany({
+      where: { userId: user.id },
+    });
+  }, 'Delete All Refresh Tokens');
+
+  return deletedRefreshTokens;
 };
 
 export const authService = {
@@ -432,5 +481,6 @@ export const authService = {
   verifyUser,
   forgotPassword,
   resetPassword,
-  logoutUser,
+  logoutCurrentDevice,
+  logoutAllDevices,
 };

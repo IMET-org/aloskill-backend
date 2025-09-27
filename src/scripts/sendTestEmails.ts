@@ -3,6 +3,21 @@ import resetPasswordTemplate from '../emails/templates/resetPassword.js';
 import signupWelcomeTemplate from '../emails/templates/signupWelcome.js';
 
 // Load environment variables
+<<<<<<< HEAD
+const TEST_EMAIL = process.env.TEST_EMAIL || 'zeroboolean@gmail.com';
+
+async function sendEmails() {
+  // Welcome email
+  await MailService.sendEmail(
+    TEST_EMAIL!,
+    'Welcome to Aloskill!',
+    signupWelcomeTemplate,
+    {
+      name: 'Sumaiya',
+      verificationLink: 'http://localhost:5000/api/v1/auth/verify?token=abc123',
+    }
+  );
+=======
 const TEST_EMAIL = process.env.TEST_EMAIL ?? 'mdarifulislam0238@gmail.com';
 
 async function sendEmails() {
@@ -11,12 +26,17 @@ async function sendEmails() {
     name: 'Arif',
     verificationLink: 'http://localhost:5000/api/v1/auth/verify?token=abc123',
   });
+>>>>>>> 9336b8479e039cf93f88af490909248d1d57f515
 
   console.log('📨 Signup welcome email queued!');
 
   // Reset password email
   await MailService.sendEmail(TEST_EMAIL, '🔑 Reset Your Password', resetPasswordTemplate, {
+<<<<<<< HEAD
+    name: 'Sumaiya',
+=======
     name: 'Arif',
+>>>>>>> 9336b8479e039cf93f88af490909248d1d57f515
     resetLink: 'https://aloskill.com/reset-password?token=xyz456',
   });
   console.log(`📨 Reset password email queued! Sent to ${TEST_EMAIL}`);
