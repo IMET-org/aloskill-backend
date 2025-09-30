@@ -41,6 +41,10 @@ const envSchema = z.object({
     .min(1000, 'Lockout duration must be at least 1 second')
     .max(24 * 60 * 60 * 1000, 'Lockout duration cannot exceed 1 day')
     .default(15 * 60 * 1000),
+  REDIS_HOST: z.string().default(process.env.REDIS_HOST as string),
+  REDIS_PORT: z.string().default(process.env.REDIS_PORT as string),
+  REDIS_PASSWORD: z.string().default(process.env.REDIS_PASSWORD as string),
+  RESEND_API_KEY: z.string().default(process.env.RESEND_API_KEY as string),
 });
 
 export const config = envSchema.parse(process.env);

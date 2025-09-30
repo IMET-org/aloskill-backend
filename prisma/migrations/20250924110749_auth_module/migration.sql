@@ -95,13 +95,13 @@ CREATE INDEX "users_status_idx" ON "public"."users"("status");
 CREATE INDEX "users_createdAt_idx" ON "public"."users"("createdAt");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "refresh_tokens_token_key" ON "public"."refresh_tokens"("token");
-
--- CreateIndex
 CREATE INDEX "refresh_tokens_token_idx" ON "public"."refresh_tokens"("token");
 
 -- CreateIndex
 CREATE INDEX "refresh_tokens_expiresAt_idx" ON "public"."refresh_tokens"("expiresAt");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "refresh_tokens_userId_userAgent_ipAddress_key" ON "public"."refresh_tokens"("userId", "userAgent", "ipAddress");
 
 -- AddForeignKey
 ALTER TABLE "public"."refresh_tokens" ADD CONSTRAINT "refresh_tokens_userId_fkey" FOREIGN KEY ("userId") REFERENCES "public"."users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
