@@ -101,7 +101,6 @@ const verifyUser = catchAsync(async (req, res): Promise<void> => {
   //
 });
 
-
 const resendVerificationEmail = catchAsync(async (req, res): Promise<void> => {
   const result = await authService.resendVerificationEmail(req);
 
@@ -117,15 +116,10 @@ const resendVerificationEmail = catchAsync(async (req, res): Promise<void> => {
   };
 
   // Send new verification email
-  await MailService.sendEmail(
-    email,
-    'Verify your email address',
-    signupWelcomeTemplate,
-    {
-      name: firstName,
-      verificationLink: `http://localhost:3000/auth/verify-user?id=${id}&token=${emailVerificationToken}`,
-    }
-  );
+  await MailService.sendEmail(email, 'Verify your email address', signupWelcomeTemplate, {
+    name: firstName,
+    verificationLink: `http://localhost:3000/auth/verify-user?id=${id}&token=${emailVerificationToken}`,
+  });
 
   ResponseHandler.ok(res, 'Verification email sent successfully', {
     email,
@@ -141,7 +135,7 @@ const forgotPassword = catchAsync(async (req, res): Promise<void> => {
       resetPasswordTemplate,
       {
         name: 'Sumaiya Ahmed',
-        resetLink: `http://localhost:3000/auth/forgot-password?id=${result?.id}&token=${result?.passwordResetToken}`,
+        resetLink: `http://localhost:3000/auth/reset-password?id=${result?.id}&token=${result?.passwordResetToken}`,
       }
     );
   }

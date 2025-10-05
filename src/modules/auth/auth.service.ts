@@ -345,7 +345,7 @@ const verifyUser = async (req: Request) => {
   }
 };
 
-export const resendVerificationEmail = async (req: Request) => {
+const resendVerificationEmail = async (req: Request) => {
   const { email } = req.body;
 
   if (!email || typeof email !== 'string') {
@@ -421,8 +421,46 @@ const forgotPassword = async (req: Request) => {
 };
 
 const resetPassword = async (req: Request) => {
-  const { oldPassword, newPassword } = req.body;
+  const { confirmPassword } = req.body;
   const { id, token } = req.query;
+
+  const user = await executeDbOperation(async prisma => {
+    return prisma.user.findUnique({
+      where: {
+        id: id as string,
+      },
+    });
+  }, 'find User in Reset Password');
+
+  if (!user) {
+    throw new Error('User Not Found');
+  }
+  if (user.passwordResetToken !== token) {
+    throw new Error('Invalid Reset Token');
+  } else {
+    if (new Date(user.passwordResetExpires as unknown as number) < new Date()) {
+      throw new Error('Password Reset Link Expired');
+    } else {
+      const hashedConfirmPassword = await hash(confirmPassword as string);
+      const updatedUser = await executeDbOperation(async prisma => {
+        return prisma.user.update({
+          where: {
+            id: user.id,
+          },
+          data: {
+            password: hashedConfirmPassword,
+            passwordChangedAt: new Date(),
+            passwordResetToken: null,
+            passwordResetExpires: null,
+          },
+        });
+      }, 'updatedUser in Reset Password');
+      return updatedUser;
+    }
+  }
+};
+const changePassword = async (req: Request) => {
+  const { id, token, oldPassword, newPassword } = req.body;
 
   const user = await executeDbOperation(async prisma => {
     return prisma.user.findUnique({
@@ -522,4 +560,5 @@ export const authService = {
   resetPassword,
   logoutCurrentDevice,
   logoutAllDevices,
+  changePassword,
 };
