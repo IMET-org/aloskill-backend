@@ -1,5 +1,5 @@
 import { config } from '@/config/env.js';
-import type { SafeZodIssue, ZIssueLike } from '@/types/errorHandler.js';
+import type { SafeZodIssue, ZIssueLike } from '@/types/errorHandler.types.js';
 import { HttpStatus } from '@/types/shared.js';
 import { Prisma } from '@prisma/client';
 import type { ErrorRequestHandler, RequestHandler } from 'express';
@@ -208,7 +208,7 @@ export const errorHandler: ErrorRequestHandler = (err, req, res, _next) => {
   // Unknown error (mask in production)
   const safeMessage =
     config.NODE_ENV === 'production'
-      ? 'Internal server error'
+      ? 'Internal server errorrrrrrrrrr'
       : err instanceof Error
         ? err.message
         : String(err);
