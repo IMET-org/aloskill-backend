@@ -345,6 +345,44 @@ const verifyUser = async (req: Request) => {
   }
 };
 
+export const resendVerificationEmail = async (req: Request) => {
+  const { email } = req.body;
+
+  if (!email || typeof email !== 'string') {
+    throw new Error('Invalid email address');
+  }
+
+  const user = await executeDbOperation(async prisma => {
+    return prisma.user.findUnique({
+      where: { email: email.toLowerCase() },
+    });
+  });
+
+  if (!user) {
+    throw new Error('User not found');
+  }
+
+  if (user.isEmailVerified) {
+    throw new Error('Email is already verified');
+  }
+
+  const verificationToken = crypto.randomUUID();
+  const verificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+  const updatedUser = await executeDbOperation(async prisma => {
+    return prisma.user.update({
+      where: { id: user.id },
+      data: {
+        emailVerificationToken: verificationToken,
+        emailVerificationExpires: verificationExpires,
+        status: UserStatus.PENDING_VERIFICATION,
+      },
+    });
+  }, 'Resend Verification Email');
+
+  return updatedUser;
+};
+
 const forgotPassword = async (req: Request) => {
   const { email } = req.body;
 
@@ -479,6 +517,7 @@ export const authService = {
   loginUser,
   registerUser,
   verifyUser,
+  resendVerificationEmail,
   forgotPassword,
   resetPassword,
   logoutCurrentDevice,

@@ -19,6 +19,7 @@ const envSchema = z.object({
       message: 'Invalid HTTP(S) URL',
       protocol: /^https?$/i,
       hostname: /^([a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$/,
+      
     })
     .default('http://localhost:3000'),
   COOKIE_SECRET: z
