@@ -1,0 +1,189 @@
+/* eslint-disable @typescript-eslint/no-unnecessary-condition */
+import { MailService } from '@/emails/mailService.js';
+import resetPasswordTemplate from '@/emails/templates/resetPassword.js';
+import signupWelcomeTemplate from '@/emails/templates/signupWelcome.js';
+import catchAsync from '@/utils/asyncHandler.js';
+import CookieService from '@/utils/cookies.js';
+import JwtService from '@/utils/jwt.js';
+import ResponseHandler from '@/utils/response.js';
+import { authService } from './auth.service.js';
+
+const loginUser = catchAsync(async (req, res): Promise<void> => {
+  const result = await authService.loginUser(req);
+
+  if (Array.isArray(result)) {
+    const [user, refreshToken] = result as [{ email: string; role: string }, { token: string }];
+
+    const accessToken = JwtService.generateToken(
+      { email: user.email, role: user.role },
+      { expiresIn: '1h', type: 'ACCESS' }
+    );
+    CookieService.setAuthCookies(res, accessToken, refreshToken.token);
+
+    ResponseHandler.ok(res, 'Login Successful', user);
+    return;
+  }
+
+  if (!result) {
+    throw new Error('Login failed');
+  }
+
+  const { email, role, refreshTokens } = result as {
+    email: string;
+    role: string;
+    refreshTokens: { token: string }[];
+  };
+
+  const accessToken = JwtService.generateToken(
+    { email, role },
+    { expiresIn: '1h', type: 'ACCESS' }
+  );
+  CookieService.setAuthCookies(res, accessToken, refreshTokens[0].token);
+
+  ResponseHandler.ok(res, 'Login Successful', result);
+});
+
+const registerUser = catchAsync(async (req, res): Promise<void> => {
+  const result = await authService.registerUser(req);
+
+  if (Array.isArray(result)) {
+    const [user, refreshToken] = result as [
+      { email: string; role: string; emailVerificationToken: string; id: string },
+      { token: string },
+    ];
+
+    const accessToken = JwtService.generateToken(
+      { email: user.email, role: user.role },
+      { expiresIn: '1h', type: 'ACCESS' }
+    );
+    CookieService.setAuthCookies(res, accessToken, refreshToken.token);
+
+    if (user.email && user.emailVerificationToken) {
+      await MailService.sendEmail(user.email, 'Welcome to Aloskill!', signupWelcomeTemplate, {
+        name: 'Sumaiya Ahmed',
+        verificationLink: `http://localhost:3000/auth/verify-user?id=${user?.id}&token=${user?.emailVerificationToken}`,
+      });
+    }
+    ResponseHandler.ok(res, 'Register Successful', user);
+    return;
+  }
+
+  if (!result) {
+    throw new Error('Registration failed');
+  }
+
+  const { email, role, refreshTokens } = result as {
+    email: string;
+    role: string;
+    emailVerificationToken: string;
+    refreshTokens: { token: string }[];
+  };
+
+  const accessToken = JwtService.generateToken(
+    { email, role },
+    { expiresIn: '1h', type: 'ACCESS' }
+  );
+  CookieService.setAuthCookies(res, accessToken, refreshTokens[0].token);
+
+  if (result.email && result.emailVerificationToken) {
+    await MailService.sendEmail(result.email, 'Welcome to Aloskill!', signupWelcomeTemplate, {
+      name: 'Sumaiya Ahmed',
+      verificationLink: `http://localhost:3000/auth/verify-user?id=${result?.id}&token=${result?.emailVerificationToken}`,
+    });
+  }
+
+  ResponseHandler.ok(res, 'Register Successful', result);
+});
+
+const verifyUser = catchAsync(async (req, res): Promise<void> => {
+  const result = await authService.verifyUser(req);
+  ResponseHandler.ok(res, 'User Verified Successfully', result);
+  //
+});
+
+
+const resendVerificationEmail = catchAsync(async (req, res): Promise<void> => {
+  const result = await authService.resendVerificationEmail(req);
+
+  if (!result) {
+    throw new Error('Failed to resend verification email');
+  }
+
+  const { email, firstName, emailVerificationToken, id } = result as {
+    email: string;
+    firstName: string;
+    emailVerificationToken: string;
+    id: string;
+  };
+
+  // Send new verification email
+  await MailService.sendEmail(
+    email,
+    'Verify your email address',
+    signupWelcomeTemplate,
+    {
+      name: firstName,
+      verificationLink: `http://localhost:3000/auth/verify-user?id=${id}&token=${emailVerificationToken}`,
+    }
+  );
+
+  ResponseHandler.ok(res, 'Verification email sent successfully', {
+    email,
+    id,
+  });
+});
+const forgotPassword = catchAsync(async (req, res): Promise<void> => {
+  const result = await authService.forgotPassword(req);
+  if (result) {
+    await MailService.sendEmail(
+      result.email,
+      'click here to reset your password',
+      resetPasswordTemplate,
+      {
+        name: 'Sumaiya Ahmed',
+        resetLink: `http://localhost:3000/auth/forgot-password?id=${result?.id}&token=${result?.passwordResetToken}`,
+      }
+    );
+  }
+  ResponseHandler.ok(res, 'Check your email for password reset link', result);
+});
+
+const resetPassword = catchAsync(async (req, res): Promise<void> => {
+  const result = await authService.resetPassword(req);
+  ResponseHandler.ok(res, 'Password Reseted Successfully', result);
+});
+
+// === Logout current device ===
+const logoutCurrentDevice = catchAsync(async (req, res): Promise<void> => {
+  const result = await authService.logoutCurrentDevice(req);
+
+  res.clearCookie('refreshToken', {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict',
+  });
+
+  if (result.alreadyLoggedOut) {
+    ResponseHandler.ok(res, 'Already logged out');
+  } else {
+    ResponseHandler.ok(res, 'Logged out from current device');
+  }
+});
+
+// === Logout all devices ===
+const logoutAllDevices = catchAsync(async (req, res): Promise<void> => {
+  const result = await authService.logoutAllDevices(req);
+  CookieService.clearAuthCookies(res);
+  ResponseHandler.ok(res, 'Logged out from all devices', result);
+});
+
+export const authController = {
+  loginUser,
+  registerUser,
+  verifyUser,
+  resendVerificationEmail,
+  forgotPassword,
+  resetPassword,
+  logoutCurrentDevice,
+  logoutAllDevices,
+};

@@ -7,3 +7,123 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
+
+// PHASE 1: Core User Authentication & Basic Profile
+
+// === CORE ENUMS ===
+enum UserRole {
+  STUDENT
+  INSTRUCTOR
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+  PENDING_VERIFICATION
+}
+
+// === CORE USER MODEL ===
+model User {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // === BASIC AUTHENTICATION ===
+  email     String  @unique
+  password  String?
+  firstName String
+  lastName  String
+  
+  // === ACCOUNT STATUS ===
+  role              UserRole   @default(STUDENT)
+  status            UserStatus @default(PENDING_VERIFICATION)
+  isEmailVerified   Boolean    @default(false)
+  isActive          Boolean    @default(true)
+  
+  // === EMAIL VERIFICATION ===
+  emailVerificationToken   String?   @unique
+  emailVerificationExpires DateTime?
+  
+  // === PASSWORD RESET ===
+  passwordResetToken   String?   @unique
+  passwordResetExpires DateTime?
+  
+  // === SOCIAL LOGIN ===
+  googleId String? @unique
+  
+  // === SECURITY TRACKING ===
+  loginAttempts     Int       @default(0)
+  lockUntil         DateTime?
+  lastLogin         DateTime?
+  lastLoginIP       String?
+  passwordChangedAt DateTime  @default(now())
+  
+  // === BASIC PROFILE ===
+  profilePicture String?
+  bio            String?
+  phoneNumber    String?
+  
+  // === LEARNING BASICS (for progress tracking later) ===
+  learningStreak        Int @default(0)
+  lastActivityDate      DateTime?
+  totalCoursesCompleted Int @default(0)
+  
+  // === RELATIONSHIPS ===
+  refreshTokens RefreshToken[]
+
+  @@map("users")
+  @@index([email])
+  @@index([role])
+  @@index([status])
+  @@index([createdAt])
+}
+
+// === JWT REFRESH TOKENS ===
+model RefreshToken {
+  id        String   @id @default(uuid())
+  token     String   
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+  
+  // === DEVICE TRACKING ===
+  userAgent String?
+  ipAddress String?
+  
+  // === USER RELATIONSHIP ===
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([userId, userAgent, ipAddress])
+  
+  @@map("refresh_tokens")
+  @@index([token])
+  @@index([expiresAt])
+}
+
+// === BASIC PLATFORM SETTINGS ===
+model PlatformSettings {
+  id          String   @id @default(uuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // === PLATFORM INFO ===
+  platformName     String   @default("Aloskill")
+  logo             String?
+  favicon          String?
+  contactEmail     String?
+  supportPhone     String?
+  
+  // === EMAIL SETTINGS (for verification/reset emails) ===
+  smtpHost         String?
+  smtpPort         Int?
+  smtpUser         String?
+  smtpPassword     String?
+  
+  // === BASIC SETTINGS ===
+  maintenanceMode  Boolean  @default(false)
+  registrationOpen Boolean  @default(true)
+  
+  @@map("platform_settings")
+}
