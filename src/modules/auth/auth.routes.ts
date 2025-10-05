@@ -20,6 +20,7 @@ router.use(authLimiter);
 router.post('/login', validate(loginSchema), authController.loginUser);
 router.post('/register', validate(registerSchema), authController.registerUser);
 router.post('/verify-user', validate(verifyUserSchema), authController.verifyUser);
+router.post('/resend-verification', authController.resendVerificationEmail);
 router.post('/forgot-password', validate(forgotSchema), authController.forgotPassword);
 router.post('/reset-password', validate(resetSchema), authController.resetPassword);
 router.post('/logout', authController.logoutCurrentDevice);

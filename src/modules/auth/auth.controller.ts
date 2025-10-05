@@ -48,7 +48,7 @@ const registerUser = catchAsync(async (req, res): Promise<void> => {
 
   if (Array.isArray(result)) {
     const [user, refreshToken] = result as [
-      { email: string; role: string; emailVerificationToken: string, id:string },
+      { email: string; role: string; emailVerificationToken: string; id: string },
       { token: string },
     ];
 
@@ -61,7 +61,7 @@ const registerUser = catchAsync(async (req, res): Promise<void> => {
     if (user.email && user.emailVerificationToken) {
       await MailService.sendEmail(user.email, 'Welcome to Aloskill!', signupWelcomeTemplate, {
         name: 'Sumaiya Ahmed',
-        verificationLink: `http://localhost:5000/api/v1/auth/verify-user?id=${user?.id}&token=${user?.emailVerificationToken}`,
+        verificationLink: `http://localhost:3000/auth/verify-user?id=${user?.id}&token=${user?.emailVerificationToken}`,
       });
     }
     ResponseHandler.ok(res, 'Register Successful', user);
@@ -88,7 +88,7 @@ const registerUser = catchAsync(async (req, res): Promise<void> => {
   if (result.email && result.emailVerificationToken) {
     await MailService.sendEmail(result.email, 'Welcome to Aloskill!', signupWelcomeTemplate, {
       name: 'Sumaiya Ahmed',
-      verificationLink: `http://localhost:5000/api/v1/auth/verify-user?id=${result?.id}&token=${result?.emailVerificationToken}`,
+      verificationLink: `http://localhost:3000/auth/verify-user?id=${result?.id}&token=${result?.emailVerificationToken}`,
     });
   }
 
@@ -98,8 +98,34 @@ const registerUser = catchAsync(async (req, res): Promise<void> => {
 const verifyUser = catchAsync(async (req, res): Promise<void> => {
   const result = await authService.verifyUser(req);
   ResponseHandler.ok(res, 'User Verified Successfully', result);
+  //
 });
 
+const resendVerificationEmail = catchAsync(async (req, res): Promise<void> => {
+  const result = await authService.resendVerificationEmail(req);
+
+  if (!result) {
+    throw new Error('Failed to resend verification email');
+  }
+
+  const { email, firstName, emailVerificationToken, id } = result as {
+    email: string;
+    firstName: string;
+    emailVerificationToken: string;
+    id: string;
+  };
+
+  // Send new verification email
+  await MailService.sendEmail(email, 'Verify your email address', signupWelcomeTemplate, {
+    name: firstName,
+    verificationLink: `http://localhost:3000/auth/verify-user?id=${id}&token=${emailVerificationToken}`,
+  });
+
+  ResponseHandler.ok(res, 'Verification email sent successfully', {
+    email,
+    id,
+  });
+});
 const forgotPassword = catchAsync(async (req, res): Promise<void> => {
   const result = await authService.forgotPassword(req);
   if (result) {
@@ -109,7 +135,7 @@ const forgotPassword = catchAsync(async (req, res): Promise<void> => {
       resetPasswordTemplate,
       {
         name: 'Sumaiya Ahmed',
-        resetLink: `http://localhost:5000/api/v1/auth/verify-user?id=${result?.id}&token=${result?.passwordResetToken}`,
+        resetLink: `http://localhost:3000/auth/reset-password?id=${result?.id}&token=${result?.passwordResetToken}`,
       }
     );
   }
@@ -149,6 +175,7 @@ export const authController = {
   loginUser,
   registerUser,
   verifyUser,
+  resendVerificationEmail,
   forgotPassword,
   resetPassword,
   logoutCurrentDevice,
