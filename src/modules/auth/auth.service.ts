@@ -19,6 +19,9 @@ const loginUser = async (req: Request) => {
   if (data.password && data.googleId) {
     throw new Error('Cannot use both password and Google ID');
   }
+  if (!data.password && !data.googleId) {
+    throw new Error('Invalid Login Method');
+  }
 
   const user = await executeDbOperation(async prisma => {
     return prisma.user.findUnique({
@@ -36,6 +39,9 @@ const loginUser = async (req: Request) => {
   }
 
   if (data.googleId) {
+    if (!user.googleId) {
+      throw new Error('Invalid login method');
+    }
     if (user?.googleId !== data.googleId) {
       throw new Error('Invalid User ID');
     } else {
@@ -78,13 +84,19 @@ const loginUser = async (req: Request) => {
   }
 
   if (data.password) {
+    if (!data.password || typeof data.password !== 'string' || data.password.trim() === '') {
+      throw new Error('Invalid Password');
+    }
+    if (!user.password) {
+      throw new Error('Invalid login method');
+    }
     if (!user.isEmailVerified) {
       throw new Error('Please Verify Your Email');
     } else if (user.lockUntil && user.lockUntil > new Date()) {
       throw new Error(`Account locked. Try again after ${user.lockUntil.toLocaleTimeString()}`);
     }
 
-    const isPasswordValid = await verifyHash(data.password as string, user.password as string);
+    const isPasswordValid = await verifyHash(data.password as string, user.password);
 
     if (!isPasswordValid) {
       const updateUserFailedAttempt = await executeDbOperation(async prisma => {
@@ -504,7 +516,7 @@ const changePassword = async (req: Request) => {
 };
 // === Logout from current device ===
 const logoutCurrentDevice = async (req: Request) => {
-  const refreshToken = req.cookies?.refreshToken || req.body.refreshToken;
+  const refreshToken = req.cookies?.refreshToken ?? req.body.refreshToken;
 
   if (!refreshToken || typeof refreshToken !== 'string') {
     throw new Error('Invalid refresh token');
