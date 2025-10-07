@@ -63,6 +63,13 @@ class CookieService {
   }
 
   /**
+   * Set refreshToken cookies (refresh)
+   */
+  static setRefreshCookie(res: Response, refreshToken: string): void {
+    this.setCookie(res, 'refreshToken', refreshToken, cookieConfig.refresh);
+  }
+
+  /**
    * Clear authentication cookies
    */
   static clearAuthCookies(res: Response): void {

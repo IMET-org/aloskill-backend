@@ -5,7 +5,7 @@ export const loginSchema = z.object({
     firstName: z.string().min(3, 'firstName must be at least 3 characters').optional(),
     lastName: z.string().min(3, 'lastName must be at least 3 characters').optional(),
     email: z.email('Invalid email address'),
-    password: z.string().min(8, 'Password must be at least 8 characters').optional(),
+    password: z.string().optional(),
     googleId: z.string().optional(),
     profilePicture: z.string().optional(),
   }),

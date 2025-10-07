@@ -13,7 +13,7 @@ import type { Request } from 'express';
 const loginUser = async (req: Request) => {
   const data = req.body;
   const { userAgent, ipAddress } = getClientInfo(req);
-  const refreshToken = crypto.randomBytes(64).toString('hex');
+  const refreshToken = await hash(crypto.randomBytes(64).toString('hex'));
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
   if (data.password && data.googleId) {
@@ -43,6 +43,7 @@ const loginUser = async (req: Request) => {
               id: user.id,
             },
             data: {
+              googleId: data.googleId,
               lastLogin: new Date(),
               lastLoginIP: ipAddress,
             },
@@ -320,7 +321,7 @@ const registerUser = async (req: Request) => {
     throw new Error('Cannot use both password and Google ID');
   }
 
-  const refreshToken = crypto.randomBytes(64).toString('hex');
+  const refreshToken = await hash(crypto.randomBytes(64).toString('hex'));
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
   const userInfo = getClientInfo(req);
 
