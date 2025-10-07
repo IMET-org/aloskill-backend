@@ -34,18 +34,8 @@ const loginUser = async (req: Request) => {
     });
   });
 
-  if (!user ) {
-    throw new Error('User and ggl does not exist');
-  }
-
-
   if (data.googleId) {
-    if (!user.googleId) {
-      throw new Error('Invalid login method');
-    }
-    if (user?.googleId !== data.googleId) {
-      throw new Error('Invalid User ID');
-    } else {
+    if (user) {
       const updateUserWithGoogleID = await executeDbOperation(async prisma => {
         return prisma.$transaction([
           prisma.user.update({
@@ -82,10 +72,41 @@ const loginUser = async (req: Request) => {
 
       return updateUserWithGoogleID;
     }
- 
+    if (!user) {
+      data.isEmailVerified = true;
+      data.status = UserStatus.ACTIVE;
+
+      const googleUser = await executeDbOperation(async prisma => {
+        return prisma.user.create({
+          data: {
+            ...data,
+            lastLogin: new Date(),
+            lastLoginIP: ipAddress,
+            refreshTokens: {
+              create: {
+                token: refreshToken,
+                expiresAt,
+                userAgent,
+                ipAddress,
+              },
+            },
+          },
+          include: {
+            refreshTokens: {
+              orderBy: { createdAt: 'desc' },
+              take: 1,
+            },
+          },
+        });
+      }, 'create user');
+      return googleUser;
+    }
   }
 
   if (data.password) {
+    if (!user) {
+      throw new Error('User does not exist');
+    }
     if (!data.password || typeof data.password !== 'string' || data.password.trim() === '') {
       throw new Error('Invalid Password');
     }
@@ -163,6 +184,130 @@ const loginUser = async (req: Request) => {
       }
     }
   }
+
+  // if (data.googleId) {
+  //   if (!user.googleId) {
+  //     throw new Error('Invalid login method');
+  //   }
+  //   if (user?.googleId !== data.googleId) {
+  //     throw new Error('Invalid User ID');
+  //   } else {
+  //     const updateUserWithGoogleID = await executeDbOperation(async prisma => {
+  //       return prisma.$transaction([
+  //         prisma.user.update({
+  //           where: {
+  //             id: user.id,
+  //           },
+  //           data: {
+  //             lastLogin: new Date(),
+  //             lastLoginIP: ipAddress,
+  //           },
+  //         }),
+  //         prisma.refreshToken.upsert({
+  //           where: {
+  //             userId_userAgent_ipAddress: {
+  //               userId: user.id,
+  //               userAgent,
+  //               ipAddress,
+  //             },
+  //           },
+  //           update: {
+  //             token: refreshToken,
+  //             expiresAt,
+  //           },
+  //           create: {
+  //             userId: user.id,
+  //             userAgent,
+  //             ipAddress,
+  //             token: refreshToken,
+  //             expiresAt,
+  //           },
+  //         }),
+  //       ]);
+  //     }, 'Update Google ID User');
+
+  //     return updateUserWithGoogleID;
+  //   }
+  // }
+
+  // if (data.password) {
+  //   if (!data.password || typeof data.password !== 'string' || data.password.trim() === '') {
+  //     throw new Error('Invalid Password');
+  //   }
+  //   if (!user.password) {
+  //     throw new Error('Invalid login method');
+  //   }
+  //   if (!user.isEmailVerified) {
+  //     throw new Error('Please Verify Your Email');
+  //   } else if (user.lockUntil && user.lockUntil > new Date()) {
+  //     throw new Error(`Account locked. Try again after ${user.lockUntil.toLocaleTimeString()}`);
+  //   }
+
+  //   const isPasswordValid = await verifyHash(data.password as string, user.password);
+
+  //   if (!isPasswordValid) {
+  //     const updateUserFailedAttempt = await executeDbOperation(async prisma => {
+  //       return prisma.user.update({
+  //         where: {
+  //           id: user.id,
+  //         },
+  //         data: {
+  //           loginAttempts: {
+  //             increment: 1,
+  //           },
+  //           ...(user.loginAttempts + 1 >= 5 && {
+  //             lockUntil: new Date(Date.now() + 30 * 60 * 1000),
+  //           }),
+  //         },
+  //       });
+  //     }, 'update user');
+  //     throw new Error(
+  //       updateUserFailedAttempt.lockUntil
+  //         ? `Account locked. Try again after ${updateUserFailedAttempt.lockUntil.toLocaleTimeString()}`
+  //         : 'Incorrect password'
+  //     );
+  //   } else {
+  //     if (user.refreshTokens.length >= 3) {
+  //       throw new Error('Device Limit Exceeded');
+  //     } else {
+  //       const updateUserWithPassword = await executeDbOperation(async prisma => {
+  //         return prisma.$transaction([
+  //           prisma.user.update({
+  //             where: {
+  //               id: user.id,
+  //             },
+  //             data: {
+  //               lastLogin: new Date(),
+  //               lastLoginIP: ipAddress,
+  //               loginAttempts: 0,
+  //             },
+  //           }),
+  //           prisma.refreshToken.upsert({
+  //             where: {
+  //               userId_userAgent_ipAddress: {
+  //                 userId: user.id,
+  //                 userAgent,
+  //                 ipAddress,
+  //               },
+  //             },
+  //             update: {
+  //               token: refreshToken,
+  //               expiresAt,
+  //             },
+  //             create: {
+  //               userId: user.id,
+  //               userAgent,
+  //               ipAddress,
+  //               token: refreshToken,
+  //               expiresAt,
+  //             },
+  //           }),
+  //         ]);
+  //       }, 'Update Password User');
+  //       return updateUserWithPassword;
+  //     }
+  //   }
+  // }
 };
 
 const registerUser = async (req: Request) => {
