@@ -43,6 +43,7 @@ const loginUser = async (req: Request) => {
               id: user.id,
             },
             data: {
+              googleId: data.googleId,
               lastLogin: new Date(),
               lastLoginIP: ipAddress,
             },
