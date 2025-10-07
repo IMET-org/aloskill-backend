@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/explicit-function-return-type */
 import redisConnection from './redisConnection.js';
 
 export class EmailRateLimiter {
