@@ -34,9 +34,10 @@ const loginUser = async (req: Request) => {
     });
   });
 
-  if (!user) {
-    throw new Error('User does not exist');
+  if (!user ) {
+    throw new Error('User and ggl does not exist');
   }
+
 
   if (data.googleId) {
     if (!user.googleId) {
@@ -81,6 +82,7 @@ const loginUser = async (req: Request) => {
 
       return updateUserWithGoogleID;
     }
+ 
   }
 
   if (data.password) {
