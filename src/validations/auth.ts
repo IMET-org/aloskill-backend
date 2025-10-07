@@ -5,6 +5,9 @@ export const loginSchema = z.object({
     email: z.email('Invalid email address'),
     password: z.string().optional(),
     googleId: z.string().optional(),
+    firstName: z.string().optional(),
+    lastName: z.string().optional(),
+    picture: z.string().optional(),
   }),
 });
 
