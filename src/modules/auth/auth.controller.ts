@@ -12,15 +12,33 @@ const loginUser = catchAsync(async (req, res): Promise<void> => {
   const result = await authService.loginUser(req);
 
   if (Array.isArray(result)) {
-    const [user, refreshToken] = result as [{ email: string; role: string }, { token: string }];
+    const [user, refreshToken] = result as [
+      {
+        email: string;
+        role: string;
+        id: string;
+        firstName: string;
+        lastName: string;
+        profilePicture: string;
+      },
+      { token: string },
+    ];
 
     const accessToken = JwtService.generateToken(
       { email: user.email, role: user.role },
       { expiresIn: '1h', type: 'ACCESS' }
     );
-    CookieService.setAuthCookies(res, accessToken, refreshToken.token);
+    CookieService.setRefreshCookie(res, refreshToken.token);
 
-    ResponseHandler.ok(res, 'Login Successful', user);
+    ResponseHandler.ok(res, 'Login Successful', {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      profilePicture: user.profilePicture,
+      accessToken,
+    });
     return;
   }
 
@@ -38,25 +56,33 @@ const loginUser = catchAsync(async (req, res): Promise<void> => {
     { email, role },
     { expiresIn: '1h', type: 'ACCESS' }
   );
-  CookieService.setAuthCookies(res, accessToken, refreshTokens[0].token);
+  CookieService.setRefreshCookie(res, refreshTokens[0].token);
 
-  ResponseHandler.ok(res, 'Login Successful', result);
+  ResponseHandler.ok(res, 'Login Successful', {
+    id: result.id,
+    email,
+    role,
+    firstName: result.firstName,
+    lastName: result.lastName,
+    profilePicture: result.profilePicture,
+    accessToken,
+  });
 });
 
 const registerUser = catchAsync(async (req, res): Promise<void> => {
   const result = await authService.registerUser(req);
 
   if (Array.isArray(result)) {
-    const [user, refreshToken] = result as [
+    const [user] = result as [
       { email: string; role: string; emailVerificationToken: string; id: string },
       { token: string },
     ];
 
-    const accessToken = JwtService.generateToken(
-      { email: user.email, role: user.role },
-      { expiresIn: '1h', type: 'ACCESS' }
-    );
-    CookieService.setAuthCookies(res, accessToken, refreshToken.token);
+    // const accessToken = JwtService.generateToken(
+    //   { email: user.email, role: user.role },
+    //   { expiresIn: '1h', type: 'ACCESS' }
+    // );
+    // CookieService.setAuthCookies(res, accessToken, refreshToken.token);
 
     if (user.email && user.emailVerificationToken) {
       await MailService.sendEmail(user.email, 'Welcome to Aloskill!', signupWelcomeTemplate, {
@@ -64,7 +90,7 @@ const registerUser = catchAsync(async (req, res): Promise<void> => {
         verificationLink: `http://localhost:3000/auth/verify-user?id=${user?.id}&token=${user?.emailVerificationToken}`,
       });
     }
-    ResponseHandler.ok(res, 'Register Successful', user);
+    ResponseHandler.ok(res, 'Register Successful', { email: user.email });
     return;
   }
 
@@ -72,18 +98,18 @@ const registerUser = catchAsync(async (req, res): Promise<void> => {
     throw new Error('Registration failed');
   }
 
-  const { email, role, refreshTokens } = result as {
+  const { email } = result as {
     email: string;
-    role: string;
+    // role: string;
     emailVerificationToken: string;
     refreshTokens: { token: string }[];
   };
 
-  const accessToken = JwtService.generateToken(
-    { email, role },
-    { expiresIn: '1h', type: 'ACCESS' }
-  );
-  CookieService.setAuthCookies(res, accessToken, refreshTokens[0].token);
+  // const accessToken = JwtService.generateToken(
+  //   { email, role },
+  //   { expiresIn: '1h', type: 'ACCESS' }
+  // );
+  // CookieService.setAuthCookies(res, accessToken, refreshTokens[0].token);
 
   if (result.email && result.emailVerificationToken) {
     await MailService.sendEmail(result.email, 'Welcome to Aloskill!', signupWelcomeTemplate, {
@@ -92,7 +118,7 @@ const registerUser = catchAsync(async (req, res): Promise<void> => {
     });
   }
 
-  ResponseHandler.ok(res, 'Register Successful', result);
+  ResponseHandler.ok(res, 'Register Successful', { email });
 });
 
 const verifyUser = catchAsync(async (req, res): Promise<void> => {
