@@ -10,143 +10,51 @@ import { UserStatus } from '@prisma/client';
 import crypto from 'crypto';
 import type { Request } from 'express';
 
-// const loginUser = async (req: Request) => {
-//   const data = req.body;
-//   const { userAgent, ipAddress } = getClientInfo(req);
-//   const refreshToken = await hash(crypto.randomBytes(64).toString('hex'));
-//   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+const REFRESH_TOKEN_TTL = 7 * 24 * 60 * 60 * 1000;
 
-//   // Validate login method
-//   if (data.password && data.googleId) {
-//     throw new Error('Cannot use both password and Google ID');
-//   }
-//   if (!data.password && !data.googleId) {
-//     throw new Error('Invalid Login Method');
-//   }
+const LOGIN_USER_SELECT = {
+  id: true,
+  email: true,
+  role: true,
+  firstName: true,
+  lastName: true,
+  profilePicture: true,
+};
 
-//   const user = await executeDbOperation(async prisma => {
-//     return prisma.user.findUnique({
-//       where: { email: data.email },
-//       include: { refreshTokens: true },
-//     });
-//   });
+const buildUserProfile = (user: {
+  id: string;
+  email: string;
+  role: string;
+  firstName: string;
+  lastName: string;
+  profilePicture: string | null;
+}) => ({
+  id: user.id,
+  email: user.email,
+  role: user.role,
+  firstName: user.firstName,
+  lastName: user.lastName,
+  profilePicture: user.profilePicture,
+});
 
-//   // -------- GOOGLE LOGIN FLOW --------
-//   if (data.googleId) {
-//     if (user) {
-//       // Verify Google ID matches if already exists
-//       if (user.googleId && user.googleId !== data.googleId) {
-//         throw new Error('Google ID mismatch for existing user');
-//       }
+const generateRefreshToken = () => {
+  const refreshToken = crypto.randomBytes(64).toString('hex');
 
-//       // Update lastLogin and store Google ID if missing
-//       const updatedUser = await executeDbOperation(async prisma => {
-//         return prisma.$transaction([
-//           prisma.user.update({
-//             where: { id: user.id },
-//             data: {
-//               googleId: user.googleId ?? data.googleId,
-//               lastLogin: new Date(),
-//               lastLoginIP: ipAddress,
-//             },
-//           }),
-//           prisma.refreshToken.upsert({
-//             where: { userId_userAgent_ipAddress: { userId: user.id, userAgent, ipAddress } },
-//             update: { token: refreshToken, expiresAt },
-//             create: { userId: user.id, userAgent, ipAddress, token: refreshToken, expiresAt },
-//           }),
-//         ]);
-//       }, 'Update Google ID User');
+  return {
+    refreshToken,
+    hashedToken: crypto.createHash('sha256').update(refreshToken).digest('hex'),
+    expiresAt: new Date(Date.now() + REFRESH_TOKEN_TTL),
+  };
+};
 
-//       return updatedUser;
-//     }
-//     // User does not exist → create new Google user
-//     const newGoogleUser = await executeDbOperation(async prisma => {
-//       return prisma.user.create({
-//         data: {
-//           ...data,
-//           googleId: data.googleId,
-//           isEmailVerified: true,
-//           status: UserStatus.ACTIVE,
-//           lastLogin: new Date(),
-//           lastLoginIP: ipAddress,
-//           refreshTokens: {
-//             create: { token: refreshToken, expiresAt, userAgent, ipAddress },
-//           },
-//         },
-//         include: {
-//           refreshTokens: { orderBy: { createdAt: 'desc' }, take: 1 },
-//         },
-//       });
-//     }, 'Create Google User');
-
-//     return newGoogleUser;
-//   }
-
-//   // -------- PASSWORD LOGIN FLOW --------
-//   if (data.password) {
-//     if (!user) {
-//       throw new Error('User does not exist');
-//     }
-//     if (!user.password) {
-//       throw new Error('Invalid login method');
-//     }
-//     if (!user.isEmailVerified) {
-//       throw new Error('Please verify your email');
-//     }
-//     if (user.lockUntil && user.lockUntil > new Date()) {
-//       throw new Error(`Account locked. Try again after ${user.lockUntil.toLocaleTimeString()}`);
-//     }
-
-//     const isPasswordValid = await verifyHash(data.password, user.password);
-//     if (!isPasswordValid) {
-//       const failedAttempt = await executeDbOperation(async prisma => {
-//         return prisma.user.update({
-//           where: { id: user.id },
-//           data: {
-//             loginAttempts: { increment: 1 },
-//             ...(user.loginAttempts + 1 >= 5 && {
-//               lockUntil: new Date(Date.now() + 30 * 60 * 1000),
-//             }),
-//           },
-//         });
-//       }, 'Update failed login attempts');
-
-//       throw new Error(
-//         failedAttempt.lockUntil
-//           ? `Account locked. Try again after ${failedAttempt.lockUntil.toLocaleTimeString()}`
-//           : 'Incorrect password'
-//       );
-//     }
-
-//     // Device limit check
-//     if (user.refreshTokens.length >= 3) {
-//       throw new Error('Device limit exceeded');
-//     }
-
-//     const updatedUser = await executeDbOperation(async prisma => {
-//       return prisma.$transaction([
-//         prisma.user.update({
-//           where: { id: user.id },
-//           data: { lastLogin: new Date(), lastLoginIP: ipAddress, loginAttempts: 0 },
-//         }),
-//         prisma.refreshToken.upsert({
-//           where: { userId_userAgent_ipAddress: { userId: user.id, userAgent, ipAddress } },
-//           update: { token: refreshToken, expiresAt },
-//           create: { userId: user.id, userAgent, ipAddress, token: refreshToken, expiresAt },
-//         }),
-//       ]);
-//     }, 'Update Password User');
-
-//     return updatedUser;
-//   }
-// };
+const hashRefreshToken = (token: string) => {
+  return crypto.createHash('sha256').update(token).digest('hex');
+};
 
 const loginUser = async (req: Request) => {
   const data = req.body;
   const { userAgent, ipAddress } = getClientInfo(req);
-  const refreshToken = await hash(crypto.randomBytes(64).toString('hex'));
-  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+  const { refreshToken, hashedToken, expiresAt } = generateRefreshToken();
 
   if (data.password && data.googleId) {
     throw new Error('Cannot use both password and Google ID');
@@ -166,88 +74,51 @@ const loginUser = async (req: Request) => {
     });
   });
 
+  if (!user) {
+    throw new Error('User does not exist');
+  }
+
+  // Device limit check
+  if (user.refreshTokens.length >= 3) {
+    throw new Error('Device limit exceeded');
+  }
+
   if (data.googleId) {
-    if (user) {
-      const updateUserWithGoogleID = await executeDbOperation(async prisma => {
-        return prisma.$transaction([
-          prisma.user.update({
-            where: {
-              id: user.id,
-            },
-            data: {
-              googleId: data.googleId,
-              lastLogin: new Date(),
-              lastLoginIP: ipAddress,
-            },
-          }),
-          prisma.refreshToken.upsert({
-            where: {
-              userId_userAgent_ipAddress: {
-                userId: user.id,
-                userAgent,
-                ipAddress,
-              },
-            },
-            update: {
-              token: refreshToken,
-              expiresAt,
-            },
-            create: {
-              userId: user.id,
-              userAgent,
-              ipAddress,
-              token: refreshToken,
-              expiresAt,
-            },
-          }),
-        ]);
-      }, 'Update Google ID User');
-
-      return updateUserWithGoogleID;
+    if (!user.googleId) {
+      throw new Error('Invalid login method');
     }
-    if (!user) {
-      data.isEmailVerified = true;
-      data.status = UserStatus.ACTIVE;
-
-      const googleUser = await executeDbOperation(async prisma => {
-        return prisma.user.upsert({
-          where: { email: data.email },
-          update: {
+    if (user.googleId && user.googleId !== data.googleId) {
+      throw new Error('Google ID mismatch for existing user');
+    }
+    const updateUserWithGoogleID = await executeDbOperation(async prisma => {
+      return prisma.$transaction([
+        prisma.user.update({
+          where: {
+            id: user.id,
+          },
+          data: {
             lastLogin: new Date(),
             lastLoginIP: ipAddress,
           },
-          create: {
-            ...data,
-            isEmailVerified: true,
-            status: UserStatus.ACTIVE,
-            lastLogin: new Date(),
-            lastLoginIP: ipAddress,
-            refreshTokens: {
-              create: {
-                token: refreshToken,
-                expiresAt,
-                userAgent,
-                ipAddress,
-              },
-            },
-          },
-          include: {
-            refreshTokens: {
-              orderBy: { createdAt: 'desc' },
-              take: 1,
-            },
-          },
-        });
-      }, 'upsert google user');
+          select: LOGIN_USER_SELECT,
+        }),
+        prisma.refreshToken.upsert({
+          where: { userId_userAgent_ipAddress: { userId: user.id, userAgent, ipAddress } },
+          update: { token: hashedToken, expiresAt },
+          create: { userId: user.id, userAgent, ipAddress, token: hashedToken, expiresAt },
+        }),
+      ]);
+    }, 'Update Google ID User');
 
-      return googleUser;
-    }
+    const [updatedProfile] = updateUserWithGoogleID;
+
+    return {
+      user: buildUserProfile(updatedProfile),
+      refreshToken,
+    };
   }
 
   if (data.password) {
-    if (!user) {
-      throw new Error('User does not exist');
-    }
     if (!data.password || typeof data.password !== 'string' || data.password.trim() === '') {
       throw new Error('Invalid Password');
     }
@@ -283,172 +154,32 @@ const loginUser = async (req: Request) => {
           ? `Account locked. Try again after ${updateUserFailedAttempt.lockUntil.toLocaleTimeString()}`
           : 'Incorrect password'
       );
-    } else {
-      if (user.refreshTokens.length >= 3) {
-        throw new Error('Device Limit Exceeded');
-      } else {
-        const updateUserWithPassword = await executeDbOperation(async prisma => {
-          return prisma.$transaction([
-            prisma.user.update({
-              where: {
-                id: user.id,
-              },
-              data: {
-                lastLogin: new Date(),
-                lastLoginIP: ipAddress,
-                loginAttempts: 0,
-              },
-            }),
-            prisma.refreshToken.upsert({
-              where: {
-                userId_userAgent_ipAddress: {
-                  userId: user.id,
-                  userAgent,
-                  ipAddress,
-                },
-              },
-              update: {
-                token: refreshToken,
-                expiresAt,
-              },
-              create: {
-                userId: user.id,
-                userAgent,
-                ipAddress,
-                token: refreshToken,
-                expiresAt,
-              },
-            }),
-          ]);
-        }, 'Update Password User');
-        return updateUserWithPassword;
-      }
     }
+
+    const updatedUser = await executeDbOperation(async prisma => {
+      return prisma.$transaction([
+        prisma.user.update({
+          where: { id: user.id },
+          data: { lastLogin: new Date(), lastLoginIP: ipAddress, loginAttempts: 0 },
+          select: LOGIN_USER_SELECT,
+        }),
+        prisma.refreshToken.upsert({
+          where: { userId_userAgent_ipAddress: { userId: user.id, userAgent, ipAddress } },
+          update: { token: hashedToken, expiresAt },
+          create: { userId: user.id, userAgent, ipAddress, token: hashedToken, expiresAt },
+        }),
+      ]);
+    }, 'Update Password User');
+
+    const [updatedProfile] = updatedUser;
+
+    return {
+      user: buildUserProfile(updatedProfile),
+      refreshToken,
+    };
   }
 
-  // if (data.googleId) {
-  //   if (!user.googleId) {
-  //     throw new Error('Invalid login method');
-  //   }
-  //   if (user?.googleId !== data.googleId) {
-  //     throw new Error('Invalid User ID');
-  //   } else {
-  //     const updateUserWithGoogleID = await executeDbOperation(async prisma => {
-  //       return prisma.$transaction([
-  //         prisma.user.update({
-  //           where: {
-  //             id: user.id,
-  //           },
-  //           data: {
-  //             lastLogin: new Date(),
-  //             lastLoginIP: ipAddress,
-  //           },
-  //         }),
-  //         prisma.refreshToken.upsert({
-  //           where: {
-  //             userId_userAgent_ipAddress: {
-  //               userId: user.id,
-  //               userAgent,
-  //               ipAddress,
-  //             },
-  //           },
-  //           update: {
-  //             token: refreshToken,
-  //             expiresAt,
-  //           },
-  //           create: {
-  //             userId: user.id,
-  //             userAgent,
-  //             ipAddress,
-  //             token: refreshToken,
-  //             expiresAt,
-  //           },
-  //         }),
-  //       ]);
-  //     }, 'Update Google ID User');
-
-  //     return updateUserWithGoogleID;
-  //   }
-  // }
-
-  // if (data.password) {
-  //   if (!data.password || typeof data.password !== 'string' || data.password.trim() === '') {
-  //     throw new Error('Invalid Password');
-  //   }
-  //   if (!user.password) {
-  //     throw new Error('Invalid login method');
-  //   }
-  //   if (!user.isEmailVerified) {
-  //     throw new Error('Please Verify Your Email');
-  //   } else if (user.lockUntil && user.lockUntil > new Date()) {
-  //     throw new Error(`Account locked. Try again after ${user.lockUntil.toLocaleTimeString()}`);
-  //   }
-
-  //   const isPasswordValid = await verifyHash(data.password as string, user.password);
-
-  //   if (!isPasswordValid) {
-  //     const updateUserFailedAttempt = await executeDbOperation(async prisma => {
-  //       return prisma.user.update({
-  //         where: {
-  //           id: user.id,
-  //         },
-  //         data: {
-  //           loginAttempts: {
-  //             increment: 1,
-  //           },
-  //           ...(user.loginAttempts + 1 >= 5 && {
-  //             lockUntil: new Date(Date.now() + 30 * 60 * 1000),
-  //           }),
-  //         },
-  //       });
-  //     }, 'update user');
-  //     throw new Error(
-  //       updateUserFailedAttempt.lockUntil
-  //         ? `Account locked. Try again after ${updateUserFailedAttempt.lockUntil.toLocaleTimeString()}`
-  //         : 'Incorrect password'
-  //     );
-  //   } else {
-  //     if (user.refreshTokens.length >= 3) {
-  //       throw new Error('Device Limit Exceeded');
-  //     } else {
-  //       const updateUserWithPassword = await executeDbOperation(async prisma => {
-  //         return prisma.$transaction([
-  //           prisma.user.update({
-  //             where: {
-  //               id: user.id,
-  //             },
-  //             data: {
-  //               lastLogin: new Date(),
-  //               lastLoginIP: ipAddress,
-  //               loginAttempts: 0,
-  //             },
-  //           }),
-  //           prisma.refreshToken.upsert({
-  //             where: {
-  //               userId_userAgent_ipAddress: {
-  //                 userId: user.id,
-  //                 userAgent,
-  //                 ipAddress,
-  //               },
-  //             },
-  //             update: {
-  //               token: refreshToken,
-  //               expiresAt,
-  //             },
-  //             create: {
-  //               userId: user.id,
-  //               userAgent,
-  //               ipAddress,
-  //               token: refreshToken,
-  //               expiresAt,
-  //             },
-  //           }),
-  //         ]);
-  //       }, 'Update Password User');
-  //       return updateUserWithPassword;
-  //     }
-  //   }
-  // }
+  throw new Error('Invalid login payload');
 };
 
 const registerUser = async (req: Request) => {
@@ -461,14 +192,12 @@ const registerUser = async (req: Request) => {
     throw new Error('Cannot use both password and Google ID');
   }
 
-  const refreshToken = await hash(crypto.randomBytes(64).toString('hex'));
-  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+  const { refreshToken, hashedToken, expiresAt } = generateRefreshToken();
   const userInfo = getClientInfo(req);
 
   const existingUser = await executeDbOperation(async prisma => {
     return prisma.user.findUnique({
       where: {
-        // OR: [{ email: data.email ?? '' }, { googleId: data.googleId ?? '' }],
         email: data.email,
       },
       include: {
@@ -497,21 +226,22 @@ const registerUser = async (req: Request) => {
           lastLoginIP: userInfo.ipAddress,
           refreshTokens: {
             create: {
-              token: refreshToken,
+              token: hashedToken,
               expiresAt,
               ...userInfo,
             },
           },
         },
-        include: {
-          refreshTokens: {
-            orderBy: { createdAt: 'desc' },
-            take: 1,
-          },
+        select: {
+          ...LOGIN_USER_SELECT,
+          emailVerificationToken: true,
         },
       });
     }, 'create user');
-    return user;
+    return {
+      user: buildUserProfile(user),
+      refreshToken,
+    };
   }
 
   if (password) {
@@ -527,6 +257,7 @@ const registerUser = async (req: Request) => {
           data: {
             password: await hash(password as string),
           },
+          select: LOGIN_USER_SELECT,
         }),
         prisma.refreshToken.upsert({
           where: {
@@ -537,20 +268,26 @@ const registerUser = async (req: Request) => {
             },
           },
           update: {
-            token: refreshToken,
+            token: hashedToken,
             expiresAt,
           },
           create: {
             userId: existingUser.id,
             userAgent: userInfo.userAgent,
             ipAddress: userInfo.ipAddress,
-            token: refreshToken,
+            token: hashedToken,
             expiresAt,
           },
         }),
       ]);
     }, 'Update Password User');
-    return updateUserWithPassword;
+
+    const [updatedProfile] = updateUserWithPassword;
+
+    return {
+      user: buildUserProfile(updatedProfile),
+      refreshToken,
+    };
   }
 
   if (googleId) {
@@ -571,6 +308,7 @@ const registerUser = async (req: Request) => {
             isEmailVerified: true,
             status: UserStatus.ACTIVE,
           },
+          select: LOGIN_USER_SELECT,
         }),
         prisma.refreshToken.upsert({
           where: {
@@ -581,20 +319,25 @@ const registerUser = async (req: Request) => {
             },
           },
           update: {
-            token: refreshToken,
+            token: hashedToken,
             expiresAt,
           },
           create: {
             userId: existingUser.id,
             userAgent: userInfo.userAgent,
             ipAddress: userInfo.ipAddress,
-            token: refreshToken,
+            token: hashedToken,
             expiresAt,
           },
         }),
       ]);
     }, 'Update Google ID User');
-    return updateUserWithGoogleID;
+
+    const [updatedProfile] = updateUserWithGoogleID;
+    return {
+      user: buildUserProfile(updatedProfile),
+      refreshToken,
+    };
   }
 };
 
@@ -806,21 +549,35 @@ const changePassword = async (req: Request) => {
 
 // === Logout from current device ===
 const logoutCurrentDevice = async (req: Request) => {
-  const refreshToken = req.cookies?.refreshToken ?? req.body.refreshToken;
-  console.log('refreshToken from logout', req.cookies);
-
+  const refreshToken = req.cookies?.refreshToken;
+  console.log('refresh from service hit logout', refreshToken);
   if (!refreshToken || typeof refreshToken !== 'string') {
     throw new Error('Invalid refresh token');
   }
 
+  // CHANGED: Hash the incoming raw refresh token before looking it up in DB.
+  // Stored tokens in DB are hashed (we save hashedToken on creation).
+  const hashed = hashRefreshToken(refreshToken); // ADDED
+
   const tokenRecord = await executeDbOperation(async prisma => {
     return prisma.refreshToken.findFirst({
-      where: { token: refreshToken },
+      where: { token: hashed }, // CHANGED: compare hashed token
     });
   }, 'Find Refresh Token');
 
   if (!tokenRecord) {
-    // Already logged out
+    // Already logged out (nothing to remove).
+    return { alreadyLoggedOut: true };
+  }
+
+  // ADDED: If token exists but expired, delete it and return alreadyLoggedOut true.
+  if (tokenRecord.expiresAt && new Date(tokenRecord.expiresAt) < new Date()) {
+    await executeDbOperation(async prisma => {
+      return prisma.refreshToken.delete({
+        where: { id: tokenRecord.id },
+      });
+    }, 'Delete Expired Refresh Token');
+
     return { alreadyLoggedOut: true };
   }
 

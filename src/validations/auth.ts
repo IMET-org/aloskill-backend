@@ -2,12 +2,12 @@ import { z } from 'zod';
 
 export const loginSchema = z.object({
   body: z.object({
-    firstName: z.string().min(3, 'firstName must be at least 3 characters').optional(),
-    lastName: z.string().min(3, 'lastName must be at least 3 characters').optional(),
+    // firstName: z.string().min(3, 'firstName must be at least 3 characters').optional(),
+    // lastName: z.string().min(3, 'lastName must be at least 3 characters').optional(),
     email: z.email('Invalid email address'),
     password: z.string().optional(),
     googleId: z.string().optional(),
-    profilePicture: z.string().optional(),
+    // profilePicture: z.string().optional(),
   }),
 });
 
@@ -62,9 +62,9 @@ export const resetSchema = z.object({
   }),
 });
 export const logoutCurrentDeviceSchema = z.object({
-  body: z.object({
-    refreshToken: z.string('Refresh token is required'),
-  }),
+  // body: z.object({
+  //   refreshToken: z.string('Refresh token is required'),
+  // }),
 });
 
 export const logoutAllDevicesSchema = z.object({

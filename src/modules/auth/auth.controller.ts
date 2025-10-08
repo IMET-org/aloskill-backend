@@ -10,61 +10,70 @@ import { authService } from './auth.service.js';
 
 const loginUser = catchAsync(async (req, res): Promise<void> => {
   const result = await authService.loginUser(req);
+  console.log('our result is here', result);
 
-  if (Array.isArray(result)) {
-    const [user, refreshToken] = result as [
-      {
-        email: string;
-        role: string;
-        id: string;
-        firstName: string;
-        lastName: string;
-        profilePicture: string;
-      },
-      { token: string },
-    ];
+  // if (Array.isArray(result)) {
+  //   const [user, refreshToken] = result as [
+  //     {
+  //       email: string;
+  //       role: string;
+  //       id: string;
+  //       firstName: string;
+  //       lastName: string;
+  //       profilePicture: string;
+  //     },
+  //     { token: string },
+  //   ];
 
-    const accessToken = JwtService.generateToken(
-      { email: user.email, role: user.role },
-      { expiresIn: '1h', type: 'ACCESS' }
-    );
-    CookieService.setRefreshCookie(res, refreshToken.token);
+  //   const accessToken = JwtService.generateToken(
+  //     { email: user.email, role: user.role },
+  //     { expiresIn: '1h', type: 'ACCESS' }
+  //   );
+  //   CookieService.setRefreshCookie(res, refreshToken.token);
 
-    ResponseHandler.ok(res, 'Login Successful', {
-      id: user.id,
-      email: user.email,
-      role: user.role,
-      firstName: user.firstName,
-      lastName: user.lastName,
-      profilePicture: user.profilePicture,
-      accessToken,
-    });
-    return;
-  }
+  //   ResponseHandler.ok(res, 'Login Successful', {
+  //     id: user.id,
+  //     email: user.email,
+  //     role: user.role,
+  //     firstName: user.firstName,
+  //     lastName: user.lastName,
+  //     profilePicture: user.profilePicture,
+  //     accessToken,
+  //   });
+  //   return;
+  // }
 
   if (!result) {
     throw new Error('Login failed');
   }
-
-  const { email, role, refreshTokens } = result as {
-    email: string;
-    role: string;
-    refreshTokens: { token: string }[];
+  const { user, refreshToken } = result as {
+    user: {
+      email: string;
+      role: string;
+      id: string;
+      firstName: string;
+      lastName: string;
+      profilePicture: string;
+    };
+    refreshToken: string;
   };
 
   const accessToken = JwtService.generateToken(
-    { email, role },
+    { email: user.email, role: user.role },
     { expiresIn: '1h', type: 'ACCESS' }
   );
-  CookieService.setRefreshCookie(res, refreshTokens[0].token);
+  // CookieService.setRefreshCookie(res, refreshToken);
+  console.log('Reach to the end of login function.', refreshToken);
+  res.cookie('refreshToken', '159357456852', {
+    httpOnly: true,
+    secure: true,
+    sameSite: 'none',
+    path: '/',
+    maxAge: 604800000,
+  });
 
   ResponseHandler.ok(res, 'Login Successful', {
-    id: result.id,
-    email,
-    role,
-    firstName: result.firstName,
-    lastName: result.lastName,
-    profilePicture: result.profilePicture,
+    ...user,
     accessToken,
   });
 });
@@ -72,53 +81,41 @@ const loginUser = catchAsync(async (req, res): Promise<void> => {
 const registerUser = catchAsync(async (req, res): Promise<void> => {
   const result = await authService.registerUser(req);
 
-  if (Array.isArray(result)) {
-    const [user] = result as [
-      { email: string; role: string; emailVerificationToken: string; id: string },
-      { token: string },
-    ];
-
-    // const accessToken = JwtService.generateToken(
-    //   { email: user.email, role: user.role },
-    //   { expiresIn: '1h', type: 'ACCESS' }
-    // );
-    // CookieService.setAuthCookies(res, accessToken, refreshToken.token);
-
-    if (user.email && user.emailVerificationToken) {
-      await MailService.sendEmail(user.email, 'Welcome to Aloskill!', signupWelcomeTemplate, {
-        name: 'Sumaiya Ahmed',
-        verificationLink: `http://localhost:3000/auth/verify-user?id=${user?.id}&token=${user?.emailVerificationToken}`,
-      });
-    }
-    ResponseHandler.ok(res, 'Register Successful', { email: user.email });
-    return;
-  }
-
   if (!result) {
     throw new Error('Registration failed');
   }
-
-  const { email } = result as {
-    email: string;
-    // role: string;
-    emailVerificationToken: string;
-    refreshTokens: { token: string }[];
+  const { user, refreshToken } = result as {
+    user: {
+      email: string;
+      role: string;
+      id: string;
+      firstName: string;
+      lastName: string;
+      profilePicture: string;
+      emailVerificationToken: string;
+    };
+    refreshToken: string;
   };
 
-  // const accessToken = JwtService.generateToken(
-  //   { email, role },
-  //   { expiresIn: '1h', type: 'ACCESS' }
-  // );
-  // CookieService.setAuthCookies(res, accessToken, refreshTokens[0].token);
+  const accessToken = JwtService.generateToken(
+    { email: user.email, role: user.role },
+    { expiresIn: '1h', type: 'ACCESS' }
+  );
+  CookieService.setRefreshCookie(res, refreshToken);
 
-  if (result.email && result.emailVerificationToken) {
-    await MailService.sendEmail(result.email, 'Welcome to Aloskill!', signupWelcomeTemplate, {
+  const { emailVerificationToken, ...separateUser } = user;
+
+  if (user.email && emailVerificationToken) {
+    await MailService.sendEmail(user.email, 'Welcome to Aloskill!', signupWelcomeTemplate, {
       name: 'Sumaiya Ahmed',
-      verificationLink: `http://localhost:3000/auth/verify-user?id=${result?.id}&token=${result?.emailVerificationToken}`,
+      verificationLink: `http://localhost:3000/auth/verify-user?id=${user?.id}&token=${emailVerificationToken}`,
     });
   }
 
-  ResponseHandler.ok(res, 'Register Successful', { email });
+  ResponseHandler.ok(res, 'Register Successful', {
+    ...separateUser,
+    accessToken,
+  });
 });
 
 const verifyUser = catchAsync(async (req, res): Promise<void> => {

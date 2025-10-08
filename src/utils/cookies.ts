@@ -17,8 +17,9 @@ export interface CookieConfig {
 // Default cookie options
 export const defaultCookieOptions: CookieOptions = {
   httpOnly: true,
-  secure: config.NODE_ENV === 'production',
-  sameSite: config.NODE_ENV === 'production' ? 'strict' : 'lax',
+  secure: config.NODE_ENV === 'production' ? true : false,
+  sameSite: config.NODE_ENV === 'production' ? 'strict' : 'none',
+  // sameSite: 'lax',
   path: '/',
 };
 
@@ -66,6 +67,7 @@ class CookieService {
    * Set refreshToken cookies (refresh)
    */
   static setRefreshCookie(res: Response, refreshToken: string): void {
+    console.log('refresh token in cookie service: ', refreshToken);
     this.setCookie(res, 'refreshToken', refreshToken, cookieConfig.refresh);
   }
 

@@ -40,12 +40,12 @@ export const speedLimiter = slowDown({
 
 // Advanced CORS configuration
 export const corsOptions = {
-  origin: config.FRONTEND_URL,
+  origin: [config.FRONTEND_URL],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
   exposedHeaders: ['RateLimit-Limit', 'RateLimit-Remaining', 'RateLimit-Reset'],
   credentials: true,
-  maxAge: 600, // 10 minutes
+  maxAge: 600,
 };
 
 // Security headers configuration
