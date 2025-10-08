@@ -1,3 +1,4 @@
+import { config } from '@/config/env.js';
 import cors from 'cors';
 import type { Request, RequestHandler } from 'express';
 import rateLimit from 'express-rate-limit';
@@ -39,7 +40,7 @@ export const speedLimiter = slowDown({
 
 // Advanced CORS configuration
 export const corsOptions = {
-  origin: process.env.FRONTEND_URL ?? ['http://localhost:3000'],
+  origin: config.FRONTEND_URL,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
   exposedHeaders: ['RateLimit-Limit', 'RateLimit-Remaining', 'RateLimit-Reset'],

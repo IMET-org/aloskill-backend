@@ -152,6 +152,7 @@ const resendVerificationEmail = catchAsync(async (req, res): Promise<void> => {
     id,
   });
 });
+
 const forgotPassword = catchAsync(async (req, res): Promise<void> => {
   const result = await authService.forgotPassword(req);
   if (result) {
@@ -176,6 +177,10 @@ const resetPassword = catchAsync(async (req, res): Promise<void> => {
 // === Logout current device ===
 const logoutCurrentDevice = catchAsync(async (req, res): Promise<void> => {
   const result = await authService.logoutCurrentDevice(req);
+
+  if (!result) {
+    throw new Error('Logout failed');
+  }
 
   res.clearCookie('refreshToken', {
     httpOnly: true,
