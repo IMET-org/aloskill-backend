@@ -62,15 +62,17 @@ const loginUser = catchAsync(async (req, res): Promise<void> => {
     { email: user.email, role: user.role },
     { expiresIn: '1h', type: 'ACCESS' }
   );
-  // CookieService.setRefreshCookie(res, refreshToken);
-  console.log('Reach to the end of login function.', refreshToken);
-  res.cookie('refreshToken', '159357456852', {
-    httpOnly: true,
-    secure: true,
-    sameSite: 'none',
-    path: '/',
-    maxAge: 604800000,
-  });
+  CookieService.setRefreshCookie(res, refreshToken);
+  // console.log('Reach to the end of login function.', refreshToken);
+  // res.setHeader('Access-Control-Allow-Origin', 'http://localhost:3000');
+  // res.setHeader('Access-Control-Allow-Credentials', 'true');
+  // res.cookie('refreshToken', '159357456852', {
+  //   httpOnly: true,
+  //   secure: false,
+  //   sameSite: 'none',
+  //   path: '/',
+  //   maxAge: 604800000,
+  // });
 
   ResponseHandler.ok(res, 'Login Successful', {
     ...user,

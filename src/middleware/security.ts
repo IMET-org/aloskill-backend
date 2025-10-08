@@ -40,7 +40,7 @@ export const speedLimiter = slowDown({
 
 // Advanced CORS configuration
 export const corsOptions = {
-  origin: [config.FRONTEND_URL],
+  origin: config.FRONTEND_URL,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
   exposedHeaders: ['RateLimit-Limit', 'RateLimit-Remaining', 'RateLimit-Reset'],
@@ -85,4 +85,8 @@ export const requestSizeLimiter: RequestHandler = (req, res, next) => {
 };
 
 // Export all security middlewares
-export const securityMiddlewares = [cors(corsOptions), helmet(helmetOptions), requestSizeLimiter];
+export const securityMiddlewares = [
+  cors(corsOptions),
+  helmet(config.NODE_ENV === 'production' ? helmetOptions : { contentSecurityPolicy: false }),
+  requestSizeLimiter,
+];
