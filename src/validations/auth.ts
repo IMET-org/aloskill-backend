@@ -62,9 +62,9 @@ export const resetSchema = z.object({
   }),
 });
 export const logoutCurrentDeviceSchema = z.object({
-  body: z.object({
-    refreshToken: z.string('Refresh token is required'),
-  }),
+  // body: z.object({
+  //   refreshToken: z.string('Refresh token is required'),
+  // }),
 });
 
 export const logoutAllDevicesSchema = z.object({

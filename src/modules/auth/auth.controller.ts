@@ -10,61 +10,72 @@ import { authService } from './auth.service.js';
 
 const loginUser = catchAsync(async (req, res): Promise<void> => {
   const result = await authService.loginUser(req);
+  console.log('our result is here', result);
+  // if (Array.isArray(result)) {
+  //   const [user, refreshToken] = result as [
+  //     {
+  //       email: string;
+  //       role: string;
+  //       id: string;
+  //       firstName: string;
+  //       lastName: string;
+  //       profilePicture: string;
+  //     },
+  //     { token: string },
+  //   ];
 
-  if (Array.isArray(result)) {
-    const [user, refreshToken] = result as [
-      {
-        email: string;
-        role: string;
-        id: string;
-        firstName: string;
-        lastName: string;
-        profilePicture: string;
-      },
-      { token: string },
-    ];
+  //   const accessToken = JwtService.generateToken(
+  //     { email: user.email, role: user.role },
+  //     { expiresIn: '1h', type: 'ACCESS' }
+  //   );
+  //   CookieService.setRefreshCookie(res, refreshToken.token);
 
-    const accessToken = JwtService.generateToken(
-      { email: user.email, role: user.role },
-      { expiresIn: '1h', type: 'ACCESS' }
-    );
-    CookieService.setRefreshCookie(res, refreshToken.token);
-
-    ResponseHandler.ok(res, 'Login Successful', {
-      id: user.id,
-      email: user.email,
-      role: user.role,
-      firstName: user.firstName,
-      lastName: user.lastName,
-      profilePicture: user.profilePicture,
-      accessToken,
-    });
-    return;
-  }
+  //   ResponseHandler.ok(res, 'Login Successful', {
+  //     id: user.id,
+  //     email: user.email,
+  //     role: user.role,
+  //     firstName: user.firstName,
+  //     lastName: user.lastName,
+  //     profilePicture: user.profilePicture,
+  //     accessToken,
+  //   });
+  //   return;
+  // }
 
   if (!result) {
     throw new Error('Login failed');
   }
-
-  const { email, role, refreshTokens } = result as {
-    email: string;
-    role: string;
-    refreshTokens: { token: string }[];
+  const { user, refreshToken } = result as {
+    user: {
+      email: string;
+      role: string;
+      id: string;
+      firstName: string;
+      lastName: string;
+      profilePicture: string;
+    };
+    refreshToken: string;
   };
-
+  // const { email, role } = user;
   const accessToken = JwtService.generateToken(
-    { email, role },
+    { email: user.email, role: user.role },
     { expiresIn: '1h', type: 'ACCESS' }
   );
-  CookieService.setRefreshCookie(res, refreshTokens[0].token);
+  CookieService.setRefreshCookie(res, refreshToken);
+  // const { email, role, refreshTokens } = result as {
+  //   email: string;
+  //   role: string;
+  //   refreshTokens: { token: string }[];
+  // };
+
+  // const accessToken = JwtService.generateToken(
+  //   { email, role },
+  //   { expiresIn: '1h', type: 'ACCESS' }
+  // );
+  // CookieService.setRefreshCookie(res, refreshTokens[0].token);
 
   ResponseHandler.ok(res, 'Login Successful', {
-    id: result.id,
-    email,
-    role,
-    firstName: result.firstName,
-    lastName: result.lastName,
-    profilePicture: result.profilePicture,
+    ...user,
     accessToken,
   });
 });
