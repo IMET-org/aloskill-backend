@@ -62,17 +62,18 @@ const loginUser = catchAsync(async (req, res): Promise<void> => {
     { email: user.email, role: user.role },
     { expiresIn: '1h', type: 'ACCESS' }
   );
-  CookieService.setRefreshCookie(res, refreshToken);
+  // CookieService.setRefreshCookie(res, refreshToken);
   // console.log('Reach to the end of login function.', refreshToken);
   // res.setHeader('Access-Control-Allow-Origin', 'http://localhost:3000');
   // res.setHeader('Access-Control-Allow-Credentials', 'true');
-  // res.cookie('refreshToken', '159357456852', {
-  //   httpOnly: true,
-  //   secure: false,
-  //   sameSite: 'none',
-  //   path: '/',
-  //   maxAge: 604800000,
-  // });
+  res.cookie('refreshToken', refreshToken, {
+    httpOnly: false,
+    secure: false,
+    sameSite: 'strict',
+    path: '/',
+    maxAge: 604800000,
+    domain: undefined,
+  });
 
   ResponseHandler.ok(res, 'Login Successful', {
     ...user,
@@ -103,8 +104,15 @@ const registerUser = catchAsync(async (req, res): Promise<void> => {
     { email: user.email, role: user.role },
     { expiresIn: '1h', type: 'ACCESS' }
   );
-  CookieService.setRefreshCookie(res, refreshToken);
-
+  // CookieService.setRefreshCookie(res, refreshToken);
+  res.cookie('refreshToken', refreshToken, {
+    httpOnly: false,
+    secure: false,
+    sameSite: 'strict',
+    path: '/',
+    maxAge: 604800000,
+    domain: undefined,
+  });
   const { emailVerificationToken, ...separateUser } = user;
 
   if (user.email && emailVerificationToken) {
@@ -184,7 +192,7 @@ const logoutCurrentDevice = catchAsync(async (req, res): Promise<void> => {
   res.clearCookie('refreshToken', {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
+    // sameSite: 'strict',
   });
 
   if (result.alreadyLoggedOut) {
@@ -201,6 +209,38 @@ const logoutAllDevices = catchAsync(async (req, res): Promise<void> => {
   ResponseHandler.ok(res, 'Logged out from all devices', result);
 });
 
+// === Refresh access token controller ===
+const refreshAccessToken = catchAsync(async (req, res): Promise<void> => {
+  const result = await authService.refreshAccessToken(req);
+
+  if (!result) {
+    throw new Error('Refresh token failed');
+  }
+
+  const { user, refreshToken } = result as {
+    user: {
+      email: string;
+      role: string;
+      id: string;
+      firstName: string;
+      lastName: string;
+      profilePicture: string;
+    };
+    refreshToken: string;
+  };
+  const accessToken = JwtService.generateToken(
+    { email: user.email, role: user.role },
+    { expiresIn: '15m', type: 'ACCESS' }
+  );
+  // Set new refresh token cookie
+  CookieService.setRefreshCookie(res, refreshToken);
+
+  ResponseHandler.ok(res, 'Token refreshed', {
+    ...user,
+    accessToken,
+  });
+});
+
 export const authController = {
   loginUser,
   registerUser,
@@ -210,4 +250,5 @@ export const authController = {
   resetPassword,
   logoutCurrentDevice,
   logoutAllDevices,
+  refreshAccessToken,
 };

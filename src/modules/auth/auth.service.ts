@@ -611,6 +611,72 @@ const logoutAllDevices = async (req: Request) => {
   return deletedRefreshTokens;
 };
 
+// === Refresh access token ===
+const refreshAccessToken = async (req: Request) => {
+  const refreshToken = req.cookies?.refreshToken;
+  if (!refreshToken || typeof refreshToken !== 'string') {
+    throw new Error('Refresh token not provided');
+  }
+
+  // Hash the incoming refresh token to match DB
+  const hashedToken = hashRefreshToken(refreshToken);
+
+  // Find the refresh token record
+  const tokenRecord = await executeDbOperation(async prisma => {
+    return prisma.refreshToken.findFirst({
+      where: { token: hashedToken },
+      include: { user: { select: LOGIN_USER_SELECT } },
+    });
+  }, 'Find Refresh Token for Refresh');
+
+  if (!tokenRecord) {
+    throw new Error('Invalid refresh token');
+  }
+
+  // Check if token is expired
+  if (tokenRecord.expiresAt && new Date(tokenRecord.expiresAt) < new Date()) {
+    // Delete expired token
+    await executeDbOperation(async prisma => {
+      return prisma.refreshToken.delete({
+        where: { id: tokenRecord.id },
+      });
+    }, 'Delete Expired Refresh Token');
+    throw new Error('Refresh token expired');
+  }
+
+  const user = tokenRecord.user;
+  if (!user) {
+    throw new Error('User not found');
+  }
+
+  // Generate new access token
+  // const accessToken = JwtService.generateToken(
+  //   { email: user.email, role: user.role },
+  //   { expiresIn: '15m', type: 'ACCESS' }
+  // );
+
+  // Optionally rotate refresh token (generate new one)
+  const {
+    refreshToken: newRefreshToken,
+    hashedToken: newHashedToken,
+    expiresAt: newExpiresAt,
+  } = generateRefreshToken();
+
+  // Update the refresh token in DB
+  await executeDbOperation(async prisma => {
+    return prisma.refreshToken.update({
+      where: { id: tokenRecord.id },
+      data: { token: newHashedToken, expiresAt: newExpiresAt },
+    });
+  }, 'Update Refresh Token');
+
+  return {
+    user: buildUserProfile(user),
+    // accessToken,
+    refreshToken: newRefreshToken, // Send new refresh token to update cookie
+  };
+};
+
 export const authService = {
   loginUser,
   registerUser,
@@ -621,4 +687,5 @@ export const authService = {
   logoutCurrentDevice,
   logoutAllDevices,
   changePassword,
+  refreshAccessToken,
 };

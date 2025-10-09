@@ -25,6 +25,7 @@ router.post('/forgot-password', validate(forgotSchema), authController.forgotPas
 router.post('/reset-password', validate(resetSchema), authController.resetPassword);
 router.post('/logout', authController.logoutCurrentDevice);
 router.post('/logout-all', validate(logoutAllDevicesSchema), authController.logoutAllDevices);
+router.post('/refresh', authController.refreshAccessToken);
 
 //named export
 export const AuthRoutes = router;

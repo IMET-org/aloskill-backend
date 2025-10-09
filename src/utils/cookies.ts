@@ -17,10 +17,12 @@ export interface CookieConfig {
 // Default cookie options
 export const defaultCookieOptions: CookieOptions = {
   httpOnly: true,
-  secure: config.NODE_ENV === 'production' ? true : false,
-  sameSite: config.NODE_ENV === 'production' ? 'strict' : 'none',
+  secure: process.env.NODE_ENV === 'production' ? true : false,
+  sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
   // sameSite: 'lax',
   path: '/',
+  // domain: process.env.NODE_ENV === 'production' ? undefined : 'localhost',
+  domain: process.env.NODE_ENV === 'production' ? undefined : undefined,
 };
 
 // Specific cookie configurations
@@ -32,6 +34,7 @@ export const cookieConfig: CookieConfig = {
   refresh: {
     ...defaultCookieOptions,
     maxAge: config.REFRESH_MAX_AGE,
+    httpOnly: false, // Temporarily set to false for testing visibility in browser
   },
   logout: {
     ...defaultCookieOptions,
@@ -148,7 +151,7 @@ class CookieService {
     this.setCookie(res, name, value, {
       ...defaultCookieOptions,
       ...options,
-      secure: true,
+      secure: process.env.NODE_ENV === 'production' ? true : false,
       httpOnly: true,
     });
   }
