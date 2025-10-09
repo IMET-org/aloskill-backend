@@ -1,13 +1,14 @@
 import cookieParser from 'cookie-parser';
+
 import express from 'express';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 import { generalLimiter, securityMiddlewares, speedLimiter } from './middleware/security.js';
 import { sanitizeInput } from './middleware/validation.js';
 import router from './routes/index.js';
 import { logger } from './utils/logger.js';
-
 const app = express();
 
+app.use(cookieParser());
 // Health check endpoint
 app.get('/health', (req, res) => {
   logger.info('Health checking.....');
@@ -25,7 +26,6 @@ if (process.env.NODE_ENV === 'production') {
 // Basic middleware
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
-app.use(cookieParser());
 
 // Security middleware
 app.use(securityMiddlewares);
