@@ -31,18 +31,18 @@ const loginUser = catchAsync(async (req, res): Promise<void> => {
     { email: user.email, role: user.role },
     { expiresIn: '1h', type: 'ACCESS' }
   );
-  // CookieService.setRefreshCookie(res, refreshToken);
+  CookieService.setRefreshCookie(res, refreshToken);
   // console.log('Reach to the end of login function.', refreshToken);
   // res.setHeader('Access-Control-Allow-Origin', 'http://localhost:3000');
   // res.setHeader('Access-Control-Allow-Credentials', 'true');
-  res.cookie('refreshToken', refreshToken, {
-    httpOnly: false,
-    secure: false,
-    sameSite: 'strict',
-    path: '/',
-    maxAge: 604800000,
-    domain: undefined,
-  });
+  // res.cookie('refreshToken', refreshToken, {
+  //   httpOnly: false,
+  //   secure: false,
+  //   sameSite: 'strict',
+  //   path: '/',
+  //   maxAge: 604800000,
+  //   domain: undefined,
+  // });
 
   ResponseHandler.ok(res, 'Login Successful', {
     ...user,
@@ -73,15 +73,15 @@ const registerUser = catchAsync(async (req, res): Promise<void> => {
     { email: user.email, role: user.role },
     { expiresIn: '1h', type: 'ACCESS' }
   );
-  // CookieService.setRefreshCookie(res, refreshToken);
-  res.cookie('refreshToken', refreshToken, {
-    httpOnly: false,
-    secure: false,
-    sameSite: 'strict',
-    path: '/',
-    maxAge: 604800000,
-    domain: undefined,
-  });
+  CookieService.setRefreshCookie(res, refreshToken);
+  // res.cookie('refreshToken', refreshToken, {
+  //   httpOnly: false,
+  //   secure: false,
+  //   sameSite: 'strict',
+  //   path: '/',
+  //   maxAge: 604800000,
+  //   domain: undefined,
+  // });
   const { emailVerificationToken, ...separateUser } = user;
 
   if (user.email && emailVerificationToken) {
