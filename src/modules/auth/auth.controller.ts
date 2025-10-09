@@ -12,37 +12,6 @@ const loginUser = catchAsync(async (req, res): Promise<void> => {
   const result = await authService.loginUser(req);
   console.log('our result is here', result);
 
-  // if (Array.isArray(result)) {
-  //   const [user, refreshToken] = result as [
-  //     {
-  //       email: string;
-  //       role: string;
-  //       id: string;
-  //       firstName: string;
-  //       lastName: string;
-  //       profilePicture: string;
-  //     },
-  //     { token: string },
-  //   ];
-
-  //   const accessToken = JwtService.generateToken(
-  //     { email: user.email, role: user.role },
-  //     { expiresIn: '1h', type: 'ACCESS' }
-  //   );
-  //   CookieService.setRefreshCookie(res, refreshToken.token);
-
-  //   ResponseHandler.ok(res, 'Login Successful', {
-  //     id: user.id,
-  //     email: user.email,
-  //     role: user.role,
-  //     firstName: user.firstName,
-  //     lastName: user.lastName,
-  //     profilePicture: user.profilePicture,
-  //     accessToken,
-  //   });
-  //   return;
-  // }
-
   if (!result) {
     throw new Error('Login failed');
   }
@@ -62,17 +31,18 @@ const loginUser = catchAsync(async (req, res): Promise<void> => {
     { email: user.email, role: user.role },
     { expiresIn: '1h', type: 'ACCESS' }
   );
-  CookieService.setRefreshCookie(res, refreshToken);
-  // console.log('Reach to the end of login function.', refreshToken);
+  // CookieService.setRefreshCookie(res, refreshToken);
+  console.log('Reach to the end of login function.', refreshToken);
   // res.setHeader('Access-Control-Allow-Origin', 'http://localhost:3000');
   // res.setHeader('Access-Control-Allow-Credentials', 'true');
-  // res.cookie('refreshToken', '159357456852', {
-  //   httpOnly: true,
-  //   secure: false,
-  //   sameSite: 'none',
-  //   path: '/',
-  //   maxAge: 604800000,
-  // });
+  res.cookie('refreshToken', '159357456852', {
+    httpOnly: false,
+    // secure: false,
+    sameSite: 'none',
+    path: '/',
+    maxAge: 604800000,
+    domain: 'localhost',
+  });
 
   ResponseHandler.ok(res, 'Login Successful', {
     ...user,
