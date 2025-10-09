@@ -17,8 +17,8 @@ export interface CookieConfig {
 // Default cookie options
 export const defaultCookieOptions: CookieOptions = {
   httpOnly: true,
-  secure: process.env.NODE_ENV === 'production' ? true : false,
-  sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+  secure: process.env.NODE_ENV === 'production' ? false : false,
+  sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'none',
   // sameSite: 'lax',
   path: '/',
   // domain: process.env.NODE_ENV === 'production' ? undefined : 'localhost',
@@ -34,7 +34,6 @@ export const cookieConfig: CookieConfig = {
   refresh: {
     ...defaultCookieOptions,
     maxAge: config.REFRESH_MAX_AGE,
-    httpOnly: false, // Temporarily set to false for testing visibility in browser
   },
   logout: {
     ...defaultCookieOptions,
