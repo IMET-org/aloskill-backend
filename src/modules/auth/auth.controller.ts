@@ -6,43 +6,12 @@ import catchAsync from '@/utils/asyncHandler.js';
 import CookieService from '@/utils/cookies.js';
 import JwtService from '@/utils/jwt.js';
 import ResponseHandler from '@/utils/response.js';
+import { type Request, type Response } from 'express';
 import { authService } from './auth.service.js';
 
 const loginUser = catchAsync(async (req, res): Promise<void> => {
   const result = await authService.loginUser(req);
   console.log('our result is here', result);
-
-  // if (Array.isArray(result)) {
-  //   const [user, refreshToken] = result as [
-  //     {
-  //       email: string;
-  //       role: string;
-  //       id: string;
-  //       firstName: string;
-  //       lastName: string;
-  //       profilePicture: string;
-  //     },
-  //     { token: string },
-  //   ];
-
-  //   const accessToken = JwtService.generateToken(
-  //     { email: user.email, role: user.role },
-  //     { expiresIn: '1h', type: 'ACCESS' }
-  //   );
-  //   CookieService.setRefreshCookie(res, refreshToken.token);
-
-  //   ResponseHandler.ok(res, 'Login Successful', {
-  //     id: user.id,
-  //     email: user.email,
-  //     role: user.role,
-  //     firstName: user.firstName,
-  //     lastName: user.lastName,
-  //     profilePicture: user.profilePicture,
-  //     accessToken,
-  //   });
-  //   return;
-  // }
-
   if (!result) {
     throw new Error('Login failed');
   }
@@ -59,22 +28,10 @@ const loginUser = catchAsync(async (req, res): Promise<void> => {
   };
 
   const accessToken = JwtService.generateToken(
-    { email: user.email, role: user.role },
+    { id: user.id, email: user.email, role: user.role },
     { expiresIn: '1h', type: 'ACCESS' }
   );
   CookieService.setRefreshCookie(res, refreshToken);
-  // console.log('Reach to the end of login function.', refreshToken);
-  // res.setHeader('Access-Control-Allow-Origin', 'http://localhost:3000');
-  // res.setHeader('Access-Control-Allow-Credentials', 'true');
-  // res.cookie('refreshToken', refreshToken, {
-  //   httpOnly: false,
-  //   secure: false,
-  //   sameSite: 'strict',
-  //   path: '/',
-  //   maxAge: 604800000,
-  //   domain: undefined,
-  // });
-
   ResponseHandler.ok(res, 'Login Successful', {
     ...user,
     accessToken,
@@ -182,19 +139,14 @@ const resetPassword = catchAsync(async (req, res): Promise<void> => {
 });
 
 // === Logout current device ===
-const logoutCurrentDevice = catchAsync(async (req, res): Promise<void> => {
-  const result = await authService.logoutCurrentDevice(req);
+const logoutCurrentDevice = catchAsync(async (req: Request, res: Response): Promise<void> => {
+  const result = await authService.logoutCurrentDevice(req); // Call the service to handle the logic
 
   if (!result) {
     throw new Error('Logout failed');
   }
 
-  res.clearCookie('refreshToken', {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    // sameSite: 'strict',
-  });
-
+  // Send response based on the result
   if (result.alreadyLoggedOut) {
     ResponseHandler.ok(res, 'Already logged out');
   } else {
@@ -230,7 +182,7 @@ const refreshAccessToken = catchAsync(async (req, res): Promise<void> => {
   };
   const accessToken = JwtService.generateToken(
     { email: user.email, role: user.role },
-    { expiresIn: '15m', type: 'ACCESS' }
+    { expiresIn: '150m', type: 'ACCESS' }
   );
   // Set new refresh token cookie
   CookieService.setRefreshCookie(res, refreshToken);

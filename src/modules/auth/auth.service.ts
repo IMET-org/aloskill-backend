@@ -548,44 +548,17 @@ const changePassword = async (req: Request) => {
 };
 
 // === Logout from current device ===
-const logoutCurrentDevice = async (req: Request) => {
-  const refreshToken = req.cookies?.refreshToken;
-  console.log('refresh from service hit logout', refreshToken);
-  if (!refreshToken || typeof refreshToken !== 'string') {
-    throw new Error('Invalid refresh token');
-  }
-
-  // CHANGED: Hash the incoming raw refresh token before looking it up in DB.
-  // Stored tokens in DB are hashed (we save hashedToken on creation).
-  const hashed = hashRefreshToken(refreshToken); // ADDED
-
-  const tokenRecord = await executeDbOperation(async prisma => {
-    return prisma.refreshToken.findFirst({
-      where: { token: hashed }, // CHANGED: compare hashed token
-    });
-  }, 'Find Refresh Token');
-
-  if (!tokenRecord) {
-    // Already logged out (nothing to remove).
-    return { alreadyLoggedOut: true };
-  }
-
-  // ADDED: If token exists but expired, delete it and return alreadyLoggedOut true.
-  if (tokenRecord.expiresAt && new Date(tokenRecord.expiresAt) < new Date()) {
-    await executeDbOperation(async prisma => {
-      return prisma.refreshToken.delete({
-        where: { id: tokenRecord.id },
-      });
-    }, 'Delete Expired Refresh Token');
-
-    return { alreadyLoggedOut: true };
+const logoutCurrentDevice = async (req: Request & { user?: { id: string } }) => {
+  const userId = req.user?.id;
+  if (!userId) {
+    throw new Error('Unauthorized: Missing user ID');
   }
 
   await executeDbOperation(async prisma => {
-    return prisma.refreshToken.delete({
-      where: { id: tokenRecord.id },
+    await prisma.refreshToken.deleteMany({
+      where: { userId },
     });
-  }, 'Delete Refresh Token');
+  }, 'Delete Refresh Tokens by Email');
 
   return { alreadyLoggedOut: false };
 };

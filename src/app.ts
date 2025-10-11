@@ -8,6 +8,10 @@ import router from './routes/index.js';
 import { logger } from './utils/logger.js';
 const app = express();
 
+// Security middleware
+app.use(securityMiddlewares);
+app.use(sanitizeInput);
+
 app.use(cookieParser());
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -26,10 +30,6 @@ if (process.env.NODE_ENV === 'production') {
 // Basic middleware
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
-
-// Security middleware
-app.use(securityMiddlewares);
-app.use(sanitizeInput);
 
 // Rate limiting
 app.use('/api/v1/', generalLimiter);

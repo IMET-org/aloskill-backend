@@ -1,7 +1,13 @@
+/* eslint-disable @typescript-eslint/no-unnecessary-type-assertion */
+/* eslint-disable @typescript-eslint/prefer-optional-chain */
+/* eslint-disable @typescript-eslint/explicit-module-boundary-types */
+/* eslint-disable @typescript-eslint/explicit-function-return-type */
 import type { JwtPayload } from '@/types/jwt.types.js';
 import { HttpStatus } from '@/types/shared.js';
 import JwtService from '@/utils/jwt.js';
 import type { NextFunction, Request, RequestHandler, Response } from 'express';
+import jwt from 'jsonwebtoken';
+import { config } from '../config/env.js';
 import CookieService from '../utils/cookies.js';
 import { InsufficientPermissionsError, JwtError } from './errorHandler.js';
 
@@ -70,6 +76,28 @@ export const authenticate = (options: AuthOptions = {}): RequestHandler => {
       next(error);
     }
   };
+};
+
+export const verifyAccessToken = (req: Request, res: Response, next: NextFunction) => {
+  const authHeader = req.headers.authorization;
+  console.log('Authorization header:', authHeader);
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ message: 'Unauthorized: Missing or malformed token' });
+  }
+
+  const token = authHeader.split(' ')[1]; // Extract token from 'Bearer <token>'
+  console.log('Extracted token:', token);
+  try {
+    // Verify token using JWT_SECRET
+    const decoded = jwt.verify(token, config.JWT_SECRET!) as { id: string; email: string ;role: string};
+    console.log('Decoded token:', decoded);
+    (req as any).user = decoded; // Attach decoded user info to the request
+    console.log('User after decoding:', (req as any).user);
+    next(); // Proceed to the next handler
+  } catch (err) {
+    console.error('JWT verification failed:', err);
+    return res.status(403).json({ message: 'Invalid or expired token' });
+  }
 };
 
 // Convenience middleware for common role patterns

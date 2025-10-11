@@ -1,3 +1,4 @@
+import { verifyAccessToken } from '@/middleware/auth.js';
 import { authLimiter } from '@/middleware/security.js';
 import { validate } from '@/middleware/validation.js';
 import {
@@ -23,7 +24,7 @@ router.post('/verify-user', validate(verifyUserSchema), authController.verifyUse
 router.post('/resend-verification', authController.resendVerificationEmail);
 router.post('/forgot-password', validate(forgotSchema), authController.forgotPassword);
 router.post('/reset-password', validate(resetSchema), authController.resetPassword);
-router.post('/logout', authController.logoutCurrentDevice);
+router.post('/logout', verifyAccessToken, authController.logoutCurrentDevice);
 router.post('/logout-all', validate(logoutAllDevicesSchema), authController.logoutAllDevices);
 router.post('/refresh', authController.refreshAccessToken);
 

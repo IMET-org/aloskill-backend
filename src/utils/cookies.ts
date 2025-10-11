@@ -16,13 +16,15 @@ export interface CookieConfig {
 
 // Default cookie options
 export const defaultCookieOptions: CookieOptions = {
+  // httpOnly: true,
+  // secure: process.env.NODE_ENV === 'production', // ✅ true in production, false in dev
+  // sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+  // path: '/',
+  // domain: process.env.NODE_ENV === 'production' ? '.aloskill.com' : undefined, // optional for prod
   httpOnly: true,
-  secure: process.env.NODE_ENV === 'production' ? false : false,
-  sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'none',
-  // sameSite: 'lax',
+  secure: false, // no HTTPS locally
+  sameSite: 'lax', // lax avoids Chrome blocking
   path: '/',
-  // domain: process.env.NODE_ENV === 'production' ? undefined : 'localhost',
-  domain: process.env.NODE_ENV === 'production' ? undefined : undefined,
 };
 
 // Specific cookie configurations
