@@ -1,14 +1,16 @@
 import cookieParser from 'cookie-parser';
-
 import express from 'express';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 import { generalLimiter, securityMiddlewares, speedLimiter } from './middleware/security.js';
 import { sanitizeInput } from './middleware/validation.js';
 import router from './routes/index.js';
 import { logger } from './utils/logger.js';
+import { trackDevice } from './middleware/deviceTracker.js';
+import { trackActivity } from './middleware/activityTracker.js';
+
+// Initialize the Express application
 const app = express();
 
-app.use(cookieParser());
 // Health check endpoint
 app.get('/health', (req, res) => {
   logger.info('Health checking.....');
@@ -19,17 +21,23 @@ app.get('/health', (req, res) => {
   });
 });
 
+// Basic middleware
+app.use(cookieParser());
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Proxy support
 if (process.env.NODE_ENV === 'production') {
   app.set('trust proxy', true);
 }
 
-// Basic middleware
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
-
 // Security middleware
 app.use(securityMiddlewares);
 app.use(sanitizeInput);
+
+// Global middleware for tracking device and activity
+app.use(trackDevice);
+app.use(trackActivity);
 
 // Rate limiting
 app.use('/api/v1/', generalLimiter);
