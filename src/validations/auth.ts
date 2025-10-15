@@ -2,12 +2,9 @@ import { z } from 'zod';
 
 export const loginSchema = z.object({
   body: z.object({
-    // firstName: z.string().min(3, 'firstName must be at least 3 characters').optional(),
-    // lastName: z.string().min(3, 'lastName must be at least 3 characters').optional(),
     email: z.email('Invalid email address'),
     password: z.string().optional(),
     googleId: z.string().optional(),
-    // profilePicture: z.string().optional(),
   }),
 });
 
@@ -38,6 +35,12 @@ export const verifyUserSchema = z.object({
   }),
 });
 
+export const resendVerificationEmailSchema = z.object({
+  body: z.object({
+    email: z.email('Invalid email address'),
+  }),
+});
+
 export const forgotSchema = z.object({
   body: z.object({
     email: z.email('Invalid email address'),
@@ -61,14 +64,4 @@ export const resetSchema = z.object({
     token: z.string('Token is required'),
   }),
 });
-export const logoutCurrentDeviceSchema = z.object({
-  // body: z.object({
-  //   refreshToken: z.string('Refresh token is required'),
-  // }),
-});
 
-export const logoutAllDevicesSchema = z.object({
-  body: z.object({
-    email: z.string('User email is required'),
-  }),
-});

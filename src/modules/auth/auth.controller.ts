@@ -3,7 +3,6 @@ import { MailService } from '@/emails/mailService.js';
 import resetPasswordTemplate from '@/emails/templates/resetPassword.js';
 import signupWelcomeTemplate from '@/emails/templates/signupWelcome.js';
 import catchAsync from '@/utils/asyncHandler.js';
-import CookieService from '@/utils/cookies.js';
 import JwtService from '@/utils/jwt.js';
 import ResponseHandler from '@/utils/response.js';
 import { type Request, type Response } from 'express';
@@ -11,7 +10,7 @@ import { authService } from './auth.service.js';
 
 const loginUser = catchAsync(async (req, res): Promise<void> => {
   const result = await authService.loginUser(req);
-  console.log('our result is here', result);
+
   if (!result) {
     throw new Error('Login failed');
   }
@@ -28,13 +27,14 @@ const loginUser = catchAsync(async (req, res): Promise<void> => {
   };
 
   const accessToken = JwtService.generateToken(
-    { id: user.id, email: user.email, role: user.role },
-    { expiresIn: '1h', type: 'ACCESS' }
+    { email: user.email, role: user.role },
+    { expiresIn: '15m', type: 'ACCESS' }
   );
-  CookieService.setRefreshCookie(res, refreshToken);
+
   ResponseHandler.ok(res, 'Login Successful', {
     ...user,
     accessToken,
+    refreshToken,
   });
 });
 
@@ -59,22 +59,14 @@ const registerUser = catchAsync(async (req, res): Promise<void> => {
 
   const accessToken = JwtService.generateToken(
     { email: user.email, role: user.role },
-    { expiresIn: '1h', type: 'ACCESS' }
+    { expiresIn: '15m', type: 'ACCESS' }
   );
-  CookieService.setRefreshCookie(res, refreshToken);
-  // res.cookie('refreshToken', refreshToken, {
-  //   httpOnly: false,
-  //   secure: false,
-  //   sameSite: 'strict',
-  //   path: '/',
-  //   maxAge: 604800000,
-  //   domain: undefined,
-  // });
+
   const { emailVerificationToken, ...separateUser } = user;
 
   if (user.email && emailVerificationToken) {
     await MailService.sendEmail(user.email, 'Welcome to Aloskill!', signupWelcomeTemplate, {
-      name: 'Sumaiya Ahmed',
+      name: user.firstName,
       verificationLink: `http://localhost:3000/auth/verify-user?id=${user?.id}&token=${emailVerificationToken}`,
     });
   }
@@ -82,13 +74,18 @@ const registerUser = catchAsync(async (req, res): Promise<void> => {
   ResponseHandler.ok(res, 'Register Successful', {
     ...separateUser,
     accessToken,
+    refreshToken,
   });
 });
 
 const verifyUser = catchAsync(async (req, res): Promise<void> => {
   const result = await authService.verifyUser(req);
+
+  if (!result) {
+    throw new Error('Verification failed');
+  }
+
   ResponseHandler.ok(res, 'User Verified Successfully', result);
-  //
 });
 
 const resendVerificationEmail = catchAsync(async (req, res): Promise<void> => {
@@ -113,29 +110,44 @@ const resendVerificationEmail = catchAsync(async (req, res): Promise<void> => {
 
   ResponseHandler.ok(res, 'Verification email sent successfully', {
     email,
-    id,
   });
 });
 
 const forgotPassword = catchAsync(async (req, res): Promise<void> => {
   const result = await authService.forgotPassword(req);
-  if (result) {
-    await MailService.sendEmail(
-      result.email,
-      'click here to reset your password',
-      resetPasswordTemplate,
-      {
-        name: 'Sumaiya Ahmed',
-        resetLink: `http://localhost:3000/auth/reset-password?id=${result?.id}&token=${result?.passwordResetToken}`,
-      }
-    );
+
+  if (!result) {
+    throw new Error('Forgot Password failed');
   }
-  ResponseHandler.ok(res, 'Check your email for password reset link', result);
+
+  if (result) {
+    const { email, firstName, passwordResetToken, id } = result as {
+      email: string;
+      firstName: string;
+      passwordResetToken: string;
+      id: string;
+    };
+
+    await MailService.sendEmail(email, 'click here to reset your password', resetPasswordTemplate, {
+      name: firstName,
+      resetLink: `http://localhost:3000/auth/reset-password?id=${id}&token=${passwordResetToken}`,
+    });
+  }
+  ResponseHandler.ok(res, 'Check your email for password reset link', {
+    email: result.email,
+  });
 });
 
 const resetPassword = catchAsync(async (req, res): Promise<void> => {
   const result = await authService.resetPassword(req);
-  ResponseHandler.ok(res, 'Password Reseted Successfully', result);
+
+  if (!result) {
+    throw new Error('Reset Password failed');
+  }
+
+  ResponseHandler.ok(res, 'Password Reseted Successfully', {
+    email: result.email,
+  });
 });
 
 // === Logout current device ===
@@ -145,19 +157,16 @@ const logoutCurrentDevice = catchAsync(async (req: Request, res: Response): Prom
   if (!result) {
     throw new Error('Logout failed');
   }
-
-  // Send response based on the result
-  if (result.alreadyLoggedOut) {
-    ResponseHandler.ok(res, 'Already logged out');
-  } else {
-    ResponseHandler.ok(res, 'Logged out from current device');
-  }
+  ResponseHandler.ok(res, 'Logged out of this device', result);
 });
 
 // === Logout all devices ===
 const logoutAllDevices = catchAsync(async (req, res): Promise<void> => {
   const result = await authService.logoutAllDevices(req);
-  CookieService.clearAuthCookies(res);
+  if (!result) {
+    throw new Error('Logout failed');
+  }
+
   ResponseHandler.ok(res, 'Logged out from all devices', result);
 });
 
@@ -184,12 +193,11 @@ const refreshAccessToken = catchAsync(async (req, res): Promise<void> => {
     { email: user.email, role: user.role },
     { expiresIn: '150m', type: 'ACCESS' }
   );
-  // Set new refresh token cookie
-  CookieService.setRefreshCookie(res, refreshToken);
 
   ResponseHandler.ok(res, 'Token refreshed', {
     ...user,
     accessToken,
+    refreshToken,
   });
 });
 

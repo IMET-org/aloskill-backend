@@ -22,8 +22,8 @@ export const defaultCookieOptions: CookieOptions = {
   // path: '/',
   // domain: process.env.NODE_ENV === 'production' ? '.aloskill.com' : undefined, // optional for prod
   httpOnly: true,
-  secure: false, // no HTTPS locally
-  sameSite: 'lax', // lax avoids Chrome blocking
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
   path: '/',
 };
 
@@ -71,7 +71,6 @@ class CookieService {
    * Set refreshToken cookies (refresh)
    */
   static setRefreshCookie(res: Response, refreshToken: string): void {
-    console.log('refresh token in cookie service: ', refreshToken);
     this.setCookie(res, 'refreshToken', refreshToken, cookieConfig.refresh);
   }
 

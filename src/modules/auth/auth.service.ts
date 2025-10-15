@@ -4,11 +4,12 @@
 /* eslint-disable require-await */
 
 import { executeDbOperation } from '@/config/database.js';
-import getClientInfo from '@/utils/getClientInfo.js';
+import type { DeviceInfo } from '@/types/deviceSessionStore.js';
+import { DeviceFingerprint } from '@/utils/deviceFingerprint.js';
 import { hash, verifyHash } from '@/utils/hashing.js';
 import { UserStatus } from '@prisma/client';
 import crypto from 'crypto';
-import type { Request } from 'express';
+import { type Request } from 'express';
 
 const REFRESH_TOKEN_TTL = 7 * 24 * 60 * 60 * 1000;
 
@@ -51,26 +52,31 @@ const hashRefreshToken = (token: string) => {
   return crypto.createHash('sha256').update(token).digest('hex');
 };
 
+const authHeadersValidate = (req: Request) => {
+  const authHeader = req.headers.authorization;
+  if (authHeader && typeof authHeader === 'string' && authHeader.startsWith('Bearer ')) {
+    return authHeader.substring(7);
+  }
+  return null;
+};
+
 const loginUser = async (req: Request) => {
   const data = req.body;
-  const { userAgent, ipAddress } = getClientInfo(req);
+  const deviceData = req.deviceInfo as DeviceInfo;
+  const deviceId = DeviceFingerprint.generateDeviceId(deviceData);
   const { refreshToken, hashedToken, expiresAt } = generateRefreshToken();
 
   if (data.password && data.googleId) {
     throw new Error('Cannot use both password and Google ID');
   }
   if (!data.password && !data.googleId) {
-    throw new Error('Invalid Login Method');
+    throw new Error('Invalid login method');
   }
 
   const user = await executeDbOperation(async prisma => {
     return prisma.user.findUnique({
-      where: {
-        email: data.email,
-      },
-      include: {
-        refreshTokens: true,
-      },
+      where: { email: data.email },
+      include: { sessions: { include: { refreshTokens: true } } },
     });
   });
 
@@ -78,8 +84,9 @@ const loginUser = async (req: Request) => {
     throw new Error('User does not exist');
   }
 
-  // Device limit check
-  if (user.refreshTokens.length >= 3) {
+  // Enforce device limit (3 devices max)
+  const activeSessions = user.sessions.filter(session => session.isActive);
+  if (activeSessions.length >= 3) {
     throw new Error('Device limit exceeded');
   }
 
@@ -87,33 +94,114 @@ const loginUser = async (req: Request) => {
     if (!user.googleId) {
       throw new Error('Invalid login method');
     }
-    if (user.googleId && user.googleId !== data.googleId) {
+    if (user.googleId !== data.googleId) {
       throw new Error('Google ID mismatch for existing user');
     }
-    const updateUserWithGoogleID = await executeDbOperation(async prisma => {
-      return prisma.$transaction([
-        prisma.user.update({
-          where: {
-            id: user.id,
-          },
+
+    const result = await executeDbOperation(async prisma => {
+      const sessionExpiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+
+      return prisma.$transaction(async tx => {
+        // Update user last login
+        const updatedUser = await tx.user.update({
+          where: { id: user.id },
           data: {
             lastLogin: new Date(),
-            lastLoginIP: ipAddress,
+            lastLoginIP: deviceData.ipAddress,
           },
           select: LOGIN_USER_SELECT,
-        }),
-        prisma.refreshToken.upsert({
-          where: { userId_userAgent_ipAddress: { userId: user.id, userAgent, ipAddress } },
-          update: { token: hashedToken, expiresAt },
-          create: { userId: user.id, userAgent, ipAddress, token: hashedToken, expiresAt },
-        }),
-      ]);
+        });
+
+        // Check for existing session on this device
+        const existingSession = await tx.userSession.findUnique({
+          where: { userId_deviceId: { userId: user.id, deviceId } },
+          include: {
+            refreshTokens: {
+              where: { revoked: false },
+              orderBy: { createdAt: 'desc' },
+              take: 1,
+            },
+          },
+        });
+
+        let newRefreshToken;
+
+        if (existingSession) {
+          // === ROTATE REFRESH TOKEN ===
+          const oldToken = existingSession.refreshTokens[0];
+          if (oldToken) {
+            newRefreshToken = await tx.refreshToken.create({
+              data: {
+                token: hashedToken,
+                sessionId: existingSession.id,
+                expiresAt,
+                replacesToken: { connect: { id: oldToken.id } },
+              },
+            });
+
+            await tx.refreshToken.update({
+              where: { id: oldToken.id },
+              data: {
+                revoked: true,
+                revokedAt: new Date(),
+                replacedByTokenId: newRefreshToken.id,
+              },
+            });
+          } else {
+            // First token for this session
+            newRefreshToken = await tx.refreshToken.create({
+              data: {
+                token: hashedToken,
+                sessionId: existingSession.id,
+                expiresAt,
+              },
+            });
+          }
+
+          // Update session
+          await tx.userSession.update({
+            where: { id: existingSession.id },
+            data: {
+              sessionToken: hashRefreshToken(crypto.randomBytes(64).toString('hex')),
+              expiresAt,
+              lastActivity: new Date(),
+              ipAddress: deviceData.ipAddress,
+              userAgent: deviceData.userAgent,
+              isActive: true,
+            },
+          });
+        } else {
+          // === NEW SESSION ===
+          const fingerprint = DeviceFingerprint.generateFromDeviceInfo(deviceData);
+          const newSession = await tx.userSession.create({
+            data: {
+              deviceId,
+              deviceFingerprint: fingerprint,
+              userId: user.id,
+              sessionToken: hashRefreshToken(crypto.randomBytes(64).toString('hex')),
+              ...deviceData,
+              expiresAt: sessionExpiresAt,
+              refreshTokens: {
+                create: {
+                  token: hashedToken,
+                  expiresAt,
+                },
+              },
+            },
+            include: { refreshTokens: true },
+          });
+
+          newRefreshToken = newSession.refreshTokens[0];
+        }
+
+        return { updatedUser, newRefreshToken };
+      });
     }, 'Update Google ID User');
 
-    const [updatedProfile] = updateUserWithGoogleID;
+    const { updatedUser } = result;
 
     return {
-      user: buildUserProfile(updatedProfile),
+      user: buildUserProfile(updatedUser),
       refreshToken,
     };
   }
@@ -156,25 +244,112 @@ const loginUser = async (req: Request) => {
       );
     }
 
-    const updatedUser = await executeDbOperation(async prisma => {
-      return prisma.$transaction([
-        prisma.user.update({
-          where: { id: user.id },
-          data: { lastLogin: new Date(), lastLoginIP: ipAddress, loginAttempts: 0 },
-          select: LOGIN_USER_SELECT,
-        }),
-        prisma.refreshToken.upsert({
-          where: { userId_userAgent_ipAddress: { userId: user.id, userAgent, ipAddress } },
-          update: { token: hashedToken, expiresAt },
-          create: { userId: user.id, userAgent, ipAddress, token: hashedToken, expiresAt },
-        }),
-      ]);
-    }, 'Update Password User');
+    const result = await executeDbOperation(async prisma => {
+      const sessionExpiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
-    const [updatedProfile] = updatedUser;
+      return prisma.$transaction(async tx => {
+        // Update user last login
+        const updatedUser = await tx.user.update({
+          where: { id: user.id },
+          data: {
+            loginAttempts: 0,
+            lockUntil: null,
+            lastLogin: new Date(),
+            lastLoginIP: deviceData.ipAddress,
+          },
+          select: LOGIN_USER_SELECT,
+        });
+
+        // Check for existing session on this device
+        const existingSession = await tx.userSession.findUnique({
+          where: { userId_deviceId: { userId: user.id, deviceId } },
+          include: {
+            refreshTokens: {
+              where: { revoked: false },
+              orderBy: { createdAt: 'desc' },
+              take: 1,
+            },
+          },
+        });
+
+        let newRefreshToken;
+
+        if (existingSession) {
+          // === ROTATE REFRESH TOKEN ===
+          const oldToken = existingSession.refreshTokens[0];
+          if (oldToken) {
+            newRefreshToken = await tx.refreshToken.create({
+              data: {
+                token: hashedToken,
+                sessionId: existingSession.id,
+                expiresAt,
+                replacesToken: { connect: { id: oldToken.id } },
+              },
+            });
+
+            await tx.refreshToken.update({
+              where: { id: oldToken.id },
+              data: {
+                revoked: true,
+                revokedAt: new Date(),
+                replacedByTokenId: newRefreshToken.id,
+              },
+            });
+          } else {
+            // First token for this session
+            newRefreshToken = await tx.refreshToken.create({
+              data: {
+                token: hashedToken,
+                sessionId: existingSession.id,
+                expiresAt,
+              },
+            });
+          }
+
+          // Update session
+          await tx.userSession.update({
+            where: { id: existingSession.id },
+            data: {
+              sessionToken: hashRefreshToken(crypto.randomBytes(64).toString('hex')),
+              expiresAt,
+              lastActivity: new Date(),
+              ipAddress: deviceData.ipAddress,
+              userAgent: deviceData.userAgent,
+              isActive: true,
+            },
+          });
+        } else {
+          // === NEW SESSION ===
+          const fingerprint = DeviceFingerprint.generateFromDeviceInfo(deviceData);
+          const newSession = await tx.userSession.create({
+            data: {
+              deviceId,
+              deviceFingerprint: fingerprint,
+              userId: user.id,
+              sessionToken: hashRefreshToken(crypto.randomBytes(64).toString('hex')),
+              ...deviceData,
+              expiresAt: sessionExpiresAt,
+              refreshTokens: {
+                create: {
+                  token: hashedToken,
+                  expiresAt,
+                },
+              },
+            },
+            include: { refreshTokens: true },
+          });
+
+          newRefreshToken = newSession.refreshTokens[0];
+        }
+
+        return { updatedUser, newRefreshToken };
+      });
+    }, 'Update Credentials User');
+
+    const { updatedUser } = result;
 
     return {
-      user: buildUserProfile(updatedProfile),
+      user: buildUserProfile(updatedUser),
       refreshToken,
     };
   }
@@ -184,6 +359,7 @@ const loginUser = async (req: Request) => {
 
 const registerUser = async (req: Request) => {
   const data = req.body;
+  const deviceData = req.deviceInfo as DeviceInfo;
   const { password, googleId } = data;
   if (!password && !googleId) {
     throw new Error('Password or Google ID must be provided');
@@ -193,7 +369,6 @@ const registerUser = async (req: Request) => {
   }
 
   const { refreshToken, hashedToken, expiresAt } = generateRefreshToken();
-  const userInfo = getClientInfo(req);
 
   const existingUser = await executeDbOperation(async prisma => {
     return prisma.user.findUnique({
@@ -201,7 +376,7 @@ const registerUser = async (req: Request) => {
         email: data.email,
       },
       include: {
-        refreshTokens: true,
+        sessions: true,
       },
     });
   }, 'User Exist');
@@ -210,47 +385,75 @@ const registerUser = async (req: Request) => {
     if (password) {
       const hashedPassword = await hash(password as string);
       data.password = hashedPassword;
-      data.emailVerificationToken = crypto.randomBytes(64).toString('hex');
-      data.emailVerificationExpires = new Date(Date.now() + 6 * 60 * 60 * 1000);
+
+      const user = await executeDbOperation(async prisma => {
+        return prisma.user.create({
+          data: {
+            ...data,
+            emailVerificationToken: crypto.randomBytes(64).toString('hex'),
+            emailVerificationExpires: new Date(Date.now() + 6 * 60 * 60 * 1000),
+          },
+          select: {
+            ...LOGIN_USER_SELECT,
+            emailVerificationToken: true,
+          },
+        });
+      }, 'create user');
+
+      return {
+        user: buildUserProfile(user),
+        refreshToken,
+      };
     }
     if (googleId) {
-      data.isEmailVerified = true;
-      data.status = UserStatus.ACTIVE;
-    }
-
-    const user = await executeDbOperation(async prisma => {
-      return prisma.user.create({
-        data: {
-          ...data,
-          lastLogin: new Date(),
-          lastLoginIP: userInfo.ipAddress,
-          refreshTokens: {
-            create: {
-              token: hashedToken,
-              expiresAt,
-              ...userInfo,
+      const user = await executeDbOperation(async prisma => {
+        return prisma.user.create({
+          data: {
+            ...data,
+            isEmailVerified: true,
+            status: UserStatus.ACTIVE,
+            lastLogin: new Date(),
+            lastLoginIP: deviceData.ipAddress,
+            sessions: {
+              create: {
+                deviceId: DeviceFingerprint.generateDeviceId(deviceData),
+                deviceFingerprint: DeviceFingerprint.generateFromDeviceInfo(deviceData),
+                sessionToken: hashedToken,
+                ...deviceData,
+                expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+                refreshTokens: {
+                  create: {
+                    token: hashedToken,
+                    expiresAt,
+                  },
+                },
+              },
             },
           },
-        },
-        select: {
-          ...LOGIN_USER_SELECT,
-          emailVerificationToken: true,
-        },
-      });
-    }, 'create user');
-    return {
-      user: buildUserProfile(user),
-      refreshToken,
-    };
+          select: {
+            ...LOGIN_USER_SELECT,
+            emailVerificationToken: true,
+          },
+        });
+      }, 'create user');
+
+      return {
+        user: buildUserProfile(user),
+        refreshToken,
+      };
+    }
   }
 
-  if (password) {
-    if (existingUser.password) {
-      throw new Error('User already exists');
-    }
-    const updateUserWithPassword = await executeDbOperation(async prisma => {
-      return prisma.$transaction([
-        prisma.user.update({
+  if (existingUser) {
+    if (password) {
+      if (existingUser.password && existingUser.emailVerificationToken) {
+        throw new Error('Email already sent, verify it and try to login');
+      }
+      if (existingUser.password) {
+        throw new Error('User already exists');
+      }
+      const updateUserWithPassword = await executeDbOperation(async prisma => {
+        return prisma.user.update({
           where: {
             id: existingUser.id,
           },
@@ -258,46 +461,21 @@ const registerUser = async (req: Request) => {
             password: await hash(password as string),
           },
           select: LOGIN_USER_SELECT,
-        }),
-        prisma.refreshToken.upsert({
-          where: {
-            userId_userAgent_ipAddress: {
-              userId: existingUser.id,
-              userAgent: userInfo.userAgent,
-              ipAddress: userInfo.ipAddress,
-            },
-          },
-          update: {
-            token: hashedToken,
-            expiresAt,
-          },
-          create: {
-            userId: existingUser.id,
-            userAgent: userInfo.userAgent,
-            ipAddress: userInfo.ipAddress,
-            token: hashedToken,
-            expiresAt,
-          },
-        }),
-      ]);
-    }, 'Update Password User');
+        });
+      }, 'Update Password User');
 
-    const [updatedProfile] = updateUserWithPassword;
-
-    return {
-      user: buildUserProfile(updatedProfile),
-      refreshToken,
-    };
-  }
-
-  if (googleId) {
-    if (existingUser.googleId) {
-      throw new Error('User already exists');
+      return {
+        user: buildUserProfile(updateUserWithPassword),
+        refreshToken,
+      };
     }
 
-    const updateUserWithGoogleID = await executeDbOperation(async prisma => {
-      return prisma.$transaction([
-        prisma.user.update({
+    if (googleId) {
+      if (existingUser.googleId) {
+        throw new Error('User already exists');
+      }
+      const updateUserWithGoogleID = await executeDbOperation(async prisma => {
+        return prisma.user.update({
           where: {
             id: existingUser.id,
           },
@@ -309,35 +487,14 @@ const registerUser = async (req: Request) => {
             status: UserStatus.ACTIVE,
           },
           select: LOGIN_USER_SELECT,
-        }),
-        prisma.refreshToken.upsert({
-          where: {
-            userId_userAgent_ipAddress: {
-              userId: existingUser.id,
-              userAgent: userInfo.userAgent,
-              ipAddress: userInfo.ipAddress,
-            },
-          },
-          update: {
-            token: hashedToken,
-            expiresAt,
-          },
-          create: {
-            userId: existingUser.id,
-            userAgent: userInfo.userAgent,
-            ipAddress: userInfo.ipAddress,
-            token: hashedToken,
-            expiresAt,
-          },
-        }),
-      ]);
-    }, 'Update Google ID User');
+        });
+      }, 'Update Google ID User');
 
-    const [updatedProfile] = updateUserWithGoogleID;
-    return {
-      user: buildUserProfile(updatedProfile),
-      refreshToken,
-    };
+      return {
+        user: buildUserProfile(updateUserWithGoogleID),
+        refreshToken,
+      };
+    }
   }
 };
 
@@ -380,6 +537,7 @@ const verifyUser = async (req: Request) => {
               emailVerificationToken: null,
               emailVerificationExpires: null,
             },
+            select: LOGIN_USER_SELECT,
           });
         }, 'Verify Email');
         return updateUser;
@@ -409,8 +567,8 @@ const resendVerificationEmail = async (req: Request) => {
     throw new Error('Email is already verified');
   }
 
-  const verificationToken = crypto.randomUUID();
-  const verificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
+  const verificationToken = crypto.randomBytes(64).toString('hex');
+  const verificationExpires = new Date(Date.now() + 12 * 60 * 60 * 1000);
 
   const updatedUser = await executeDbOperation(async prisma => {
     return prisma.user.update({
@@ -419,6 +577,10 @@ const resendVerificationEmail = async (req: Request) => {
         emailVerificationToken: verificationToken,
         emailVerificationExpires: verificationExpires,
         status: UserStatus.PENDING_VERIFICATION,
+      },
+      select: {
+        ...LOGIN_USER_SELECT,
+        emailVerificationToken: true,
       },
     });
   }, 'Resend Verification Email');
@@ -454,7 +616,11 @@ const forgotPassword = async (req: Request) => {
           },
           data: {
             passwordResetToken: refreshToken,
-            passwordResetExpires: new Date(Date.now() + 6 * 60 * 60 * 1000),
+            passwordResetExpires: new Date(Date.now() + 12 * 60 * 60 * 1000),
+          },
+          select: {
+            ...LOGIN_USER_SELECT,
+            passwordResetToken: true,
           },
         });
       }, 'Forgot Password');
@@ -496,6 +662,7 @@ const resetPassword = async (req: Request) => {
             passwordResetToken: null,
             passwordResetExpires: null,
           },
+          select: LOGIN_USER_SELECT,
         });
       }, 'updatedUser in Reset Password');
       return updatedUser;
@@ -539,6 +706,7 @@ const changePassword = async (req: Request) => {
               passwordResetToken: null,
               passwordResetExpires: null,
             },
+            select: LOGIN_USER_SELECT,
           });
         }, 'updatedUser in Reset Password');
         return updatedUser;
@@ -548,105 +716,249 @@ const changePassword = async (req: Request) => {
 };
 
 // === Logout from current device ===
-const logoutCurrentDevice = async (req: Request & { user?: { id: string } }) => {
-  const userId = req.user?.id;
-  if (!userId) {
-    throw new Error('Unauthorized: Missing user ID');
+const logoutCurrentDevice = async (req: Request) => {
+  const refreshToken = authHeadersValidate(req);
+  if (!refreshToken || typeof refreshToken !== 'string') {
+    throw new Error('Invalid refresh token');
   }
 
-  await executeDbOperation(async prisma => {
-    await prisma.refreshToken.deleteMany({
-      where: { userId },
-    });
-  }, 'Delete Refresh Tokens by Email');
+  const hashedToken = hashRefreshToken(refreshToken);
 
-  return { alreadyLoggedOut: false };
+  const session = await executeDbOperation(async prisma => {
+    return prisma.userSession.findFirst({
+      where: { refreshTokens: { some: { token: hashedToken } } },
+      include: { refreshTokens: true },
+    });
+  }, 'Find Session in Logout Current Device');
+
+  if (!session) {
+    throw new Error('Session not found or already logged out');
+  }
+
+  if (!session.isActive) {
+    throw new Error('Already Logged Out');
+  }
+
+  const updateRefreshTokenAndSession = await executeDbOperation(async prisma => {
+    return await prisma.$transaction([
+      prisma.refreshToken.updateMany({
+        where: {
+          sessionId: session.id,
+          id: { in: session.refreshTokens.map(t => t.id) },
+          revoked: false,
+        },
+        data: {
+          revoked: true,
+          revokedAt: new Date(),
+        },
+      }),
+      prisma.userSession.update({
+        where: { id: session.id },
+        data: {
+          isActive: false,
+          isCompromised: false,
+          expiresAt: new Date(),
+          updatedAt: new Date(),
+        },
+        select: { id: true, userId: true },
+      }),
+    ]);
+  }, 'Update RefreshToken in Logout current Device');
+
+  const [revokedTokens, updatedSession] = updateRefreshTokenAndSession as unknown as [
+    { count: number },
+    { count: number; userId: string },
+  ];
+
+  if (!revokedTokens || !updatedSession) {
+    throw new Error('Logout operation failed.');
+  }
+
+  if (revokedTokens.count === 0) {
+    throw new Error('No active refresh tokens found to revoke.');
+  }
+
+  if (updatedSession.count === 0) {
+    throw new Error('No active session found for this device.');
+  }
+
+  return {
+    user: updatedSession.userId,
+  };
 };
 
 // === Logout from all devices ===
 const logoutAllDevices = async (req: Request) => {
-  const { email } = req.body; // ✅ populated by auth middleware
-  const user = await executeDbOperation(async prisma => {
-    return prisma.user.findUnique({
-      where: { email },
-    });
-  }, 'Find User in Logout All Devices');
-  if (!user) {
-    throw new Error('User not found');
+  // === 1️⃣ Extract refresh token from cookie
+  const refreshToken = authHeadersValidate(req);
+  if (!refreshToken || typeof refreshToken !== 'string') {
+    throw new Error('Invalid or missing refresh token.');
   }
 
-  const deletedRefreshTokens = await executeDbOperation(async prisma => {
-    return prisma.refreshToken.deleteMany({
-      where: { userId: user.id },
-    });
-  }, 'Delete All Refresh Tokens');
+  // === 2️⃣ Hash token for lookup
+  const hashedToken = hashRefreshToken(refreshToken);
 
-  return deletedRefreshTokens;
+  // === 3️⃣ Find session and associated user
+  const session = await executeDbOperation(async prisma => {
+    return prisma.userSession.findFirst({
+      where: { refreshTokens: { some: { token: hashedToken, revoked: false } } },
+      select: { id: true, userId: true },
+    });
+  }, 'Find user from refresh token during logout-all-devices');
+
+  if (!session) {
+    throw new Error('Active session not found or already logged out.');
+  }
+
+  // === 4️⃣ Revoke all refresh tokens + deactivate all user sessions
+  const [revokedTokens, updatedSessions] = await executeDbOperation(async prisma => {
+    return prisma.$transaction([
+      prisma.refreshToken.updateMany({
+        where: {
+          sessionId: session.id,
+          revoked: false,
+        },
+        data: {
+          revoked: true,
+          revokedAt: new Date(),
+        },
+      }),
+      prisma.userSession.updateMany({
+        where: { userId: session.userId, isActive: true },
+        data: {
+          isActive: false,
+          expiresAt: new Date(),
+          updatedAt: new Date(),
+        },
+      }),
+    ]);
+  }, 'Revoke all refresh tokens and deactivate sessions');
+
+  if (!revokedTokens || !updatedSessions) {
+    throw new Error(
+      'Unexpected database response. Logout operation failed. Please try again later.'
+    );
+  }
+
+  return {
+    message: 'Successfully logged out of all devices.',
+    loggedOutDevices:
+      updatedSessions.count > 0 ? `Logged out ${updatedSessions.count} sessions.` : '',
+  };
 };
 
 // === Refresh access token ===
 const refreshAccessToken = async (req: Request) => {
-  const refreshToken = req.cookies?.refreshToken;
-  if (!refreshToken || typeof refreshToken !== 'string') {
+  console.log("Server Request started.... : ", new Date().toLocaleTimeString());
+  const { refreshToken, hashedToken, expiresAt } = generateRefreshToken();
+  const oldRefreshToken = authHeadersValidate(req);
+
+  if (!oldRefreshToken || typeof oldRefreshToken !== 'string') {
     throw new Error('Refresh token not provided');
   }
 
-  // Hash the incoming refresh token to match DB
-  const hashedToken = hashRefreshToken(refreshToken);
+  const hashedOldToken = hashRefreshToken(oldRefreshToken);
 
-  // Find the refresh token record
-  const tokenRecord = await executeDbOperation(async prisma => {
-    return prisma.refreshToken.findFirst({
-      where: { token: hashedToken },
-      include: { user: { select: LOGIN_USER_SELECT } },
+  console.log('Refresh token in server : ', hashedOldToken);
+
+  // 1️⃣ Find the existing refresh token
+  const existingToken = await executeDbOperation(async prisma => {
+    return await prisma.refreshToken.findUnique({
+      where: { token: hashedOldToken },
+      include: { session: true },
     });
-  }, 'Find Refresh Token for Refresh');
+  }, 'Find Existing Refresh Token');
 
-  if (!tokenRecord) {
-    throw new Error('Invalid refresh token');
+  if (!existingToken) {
+    throw new Error('Refresh token not found or already revoked.');
   }
 
-  // Check if token is expired
-  if (tokenRecord.expiresAt && new Date(tokenRecord.expiresAt) < new Date()) {
-    // Delete expired token
+  // Check if expired or revoked
+  if (existingToken.revoked) {
     await executeDbOperation(async prisma => {
-      return prisma.refreshToken.delete({
-        where: { id: tokenRecord.id },
+      return prisma.userSession.update({
+        where: { id: existingToken.sessionId as string},
+        data: { isActive: false },
       });
-    }, 'Delete Expired Refresh Token');
-    throw new Error('Refresh token expired');
+    }, 'Deactivate Session on Revoked Token');
+    throw new Error('Refresh token is revoked.');
   }
 
-  const user = tokenRecord.user;
-  if (!user) {
-    throw new Error('User not found');
+  if (existingToken.expiresAt < new Date()) {
+    throw new Error('Refresh token is expired.');
   }
 
-  // Generate new access token
-  // const accessToken = JwtService.generateToken(
-  //   { email: user.email, role: user.role },
-  //   { expiresIn: '15m', type: 'ACCESS' }
-  // );
+  // Check if session is active and not expired
+  if (existingToken.session) {
+    if (!existingToken.session.isActive || existingToken.session.expiresAt < new Date()) {
+      throw new Error('Session is inactive or expired.');
+    }
+  }
 
-  // Optionally rotate refresh token (generate new one)
-  const {
-    refreshToken: newRefreshToken,
-    hashedToken: newHashedToken,
-    expiresAt: newExpiresAt,
-  } = generateRefreshToken();
+  // 3️⃣ Transaction to rotate tokens
+  const rotateRefreshToken = await executeDbOperation(async prisma => {
+    return await prisma.$transaction(async tx => {
+      const revokedToken = await tx.refreshToken.update({
+        where: { id: existingToken.id },
+        data: {
+          revoked: true,
+          revokedAt: new Date(),
+        },
+      });
 
-  // Update the refresh token in DB
-  await executeDbOperation(async prisma => {
-    return prisma.refreshToken.update({
-      where: { id: tokenRecord.id },
-      data: { token: newHashedToken, expiresAt: newExpiresAt },
+      const newToken = await tx.refreshToken.create({
+        data: {
+          token: hashedToken,
+          sessionId: existingToken.sessionId,
+          expiresAt,
+          replacesToken: { connect: { id: existingToken.id } },
+        },
+      });
+
+      await tx.refreshToken.update({
+        where: { id: existingToken.id },
+        data: { replacedByTokenId: newToken.id },
+      });
+
+      const updatedSession = await tx.userSession.update({
+        where: { id: existingToken.sessionId as string },
+        data: { lastActivity: new Date() },
+        include: {
+          user: {
+            select: LOGIN_USER_SELECT,
+          },
+        },
+      });
+
+      return { revokedToken, newToken, updatedSession };
     });
-  }, 'Update Refresh Token');
+  }, 'Rotate Tokens');
+
+  if (!rotateRefreshToken) {
+    throw new Error('Token rotation failed: no transaction result received.');
+  }
+
+  const { revokedToken, newToken, updatedSession } = rotateRefreshToken;
+
+  if (!revokedToken || !newToken || !updatedSession) {
+    throw new Error('Token rotation incomplete: missing data from transaction.');
+  }
+
+  if (!revokedToken.revoked) {
+    throw new Error('Old refresh token was not properly revoked.');
+  }
+
+  if (newToken.expiresAt <= new Date()) {
+    throw new Error('New refresh token has invalid expiry date.');
+  }
+
+  if (updatedSession.isActive === false) {
+    throw new Error('Session was inactive during rotation.');
+  }
 
   return {
-    user: buildUserProfile(user),
-    // accessToken,
-    refreshToken: newRefreshToken, // Send new refresh token to update cookie
+    user: updatedSession.user,
+    refreshToken,
   };
 };
 

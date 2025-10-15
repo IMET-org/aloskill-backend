@@ -64,24 +64,7 @@ export const speedLimiter = slowDown({
 // };
 
 export const corsOptions = {
-  origin: ['http://localhost:3000'],
-  // origin: [config.FRONTEND_URL],
-  // origin: (
-  //   origin: string | undefined,
-  //   callback: (err: Error | null, allowed?: boolean) => void
-  // ) => {
-  //   const allowedOrigins = [
-  //     'http://localhost:3000', // local dev
-  //     'https://aloskill.com', // production (if applicable)
-  //   ];
-
-  //   // Allow requests with no origin (like mobile apps or curl)
-  //   if (!origin || allowedOrigins.includes(origin)) {
-  //     callback(null, true);
-  //   } else {
-  //     callback(new Error('Not allowed by CORS'));
-  //   }
-  // },
+  origin: [config.FRONTEND_URL, 'http://localhost:3000/'],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
   exposedHeaders: ['RateLimit-Limit', 'RateLimit-Remaining', 'RateLimit-Reset', 'Set-Cookie'],
@@ -128,7 +111,6 @@ export const requestSizeLimiter: RequestHandler = (req, res, next) => {
 // Export all security middlewares
 export const securityMiddlewares = [
   cors(corsOptions),
-  // helmet(config.NODE_ENV === 'production' ? helmetOptions : { contentSecurityPolicy: false }),
   helmet(helmetOptions),
   requestSizeLimiter,
 ];

@@ -25,6 +25,16 @@ enum UserStatus {
   PENDING_VERIFICATION
 }
 
+// ✅ Use enum for device type
+enum DeviceType {
+  DESKTOP
+  MOBILE
+  TABLET
+  SMART_TV
+  GAME_CONSOLE
+  UNKNOWN
+}
+
 // === CORE USER MODEL ===
 model User {
   id        String   @id @default(uuid())
@@ -72,34 +82,96 @@ model User {
   totalCoursesCompleted Int @default(0)
   
   // === RELATIONSHIPS ===
-  refreshTokens RefreshToken[]
+  sessions          UserSession[]
 
   @@map("users")
   @@index([email])
   @@index([role])
   @@index([status])
   @@index([createdAt])
+  @@index([isActive])
 }
 
-// === JWT REFRESH TOKENS ===
-model RefreshToken {
-  id        String   @id @default(uuid())
-  token     String   
-  createdAt DateTime @default(now())
-  expiresAt DateTime
+model UserSession {
+  id           String   @id @default(uuid())
   
-  // === DEVICE TRACKING ===
-  userAgent String?
-  ipAddress String?
+  // User identification
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   
-  // === USER RELATIONSHIP ===
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  @@unique([userId, userAgent, ipAddress])
+  // Device fingerprinting
+  deviceId     String   // Unique device identifier
+  deviceFingerprint String? // Hashed device fingerprint
   
-  @@map("refresh_tokens")
-  @@index([token])
+  // Session security
+  sessionToken String   @unique // Hashed session token
+  
+  // Device information
+  userAgent    String?
+  ipAddress    String?
+  deviceType   DeviceType
+  browser      String?
+  browserVersion String?
+  os           String?
+  osVersion    String?
+  platform     String?
+  
+  // Location data
+  country      String?
+  city         String?
+  region       String?
+  timezone     String?
+  
+  // Session lifecycle
+  isActive     Boolean   @default(true)
+  expiresAt    DateTime
+  lastActivity DateTime @default(now())
+  
+  // Security flags
+  isCompromised Boolean @default(false)
+  compromisedAt DateTime?
+  
+  // Timestamps
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // 👇 Relation to RefreshToken
+  refreshTokens RefreshToken[]  // each rotation belongs here
+
+  // 🔐 Indexes for performance and queries
+  @@unique([userId, deviceId])
+  @@index([userId])
+  @@index([deviceId])
+  @@index([isActive])
+  @@index([lastActivity])
   @@index([expiresAt])
+  @@index([isCompromised])
+  @@index([createdAt])
+}
+
+model RefreshToken {
+  id        String  @id @default(uuid())
+  token     String  @unique
+  sessionId String?
+  session   UserSession? @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  
+  expiresAt DateTime
+  revoked   Boolean  @default(false)
+  revokedAt DateTime?
+  
+  replacedByTokenId String?  @unique
+  replacedBy        RefreshToken? @relation("RefreshTokenRotation", fields: [replacedByTokenId], references: [id], onDelete: SetNull)
+  replacesToken     RefreshToken? @relation("RefreshTokenRotation")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("refresh_tokens")
+  @@index([sessionId])
+  @@index([expiresAt])
+  @@index([revoked])
+  @@index([revokedAt])
+  @@index([replacedByTokenId])
 }
 
 // === BASIC PLATFORM SETTINGS ===

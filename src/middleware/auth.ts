@@ -89,7 +89,11 @@ export const verifyAccessToken = (req: Request, res: Response, next: NextFunctio
   console.log('Extracted token:', token);
   try {
     // Verify token using JWT_SECRET
-    const decoded = jwt.verify(token, config.JWT_SECRET!) as { id: string; email: string ;role: string};
+    const decoded = jwt.verify(token, config.JWT_SECRET!) as {
+      id: string;
+      email: string;
+      role: string;
+    };
     console.log('Decoded token:', decoded);
     (req as any).user = decoded; // Attach decoded user info to the request
     console.log('User after decoding:', (req as any).user);
