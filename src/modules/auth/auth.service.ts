@@ -29,6 +29,7 @@ const buildUserProfile = (user: {
   firstName: string;
   lastName: string;
   profilePicture: string | null;
+  emailVerificationToken?: string | null;
 }) => ({
   id: user.id,
   email: user.email,
@@ -36,6 +37,7 @@ const buildUserProfile = (user: {
   firstName: user.firstName,
   lastName: user.lastName,
   profilePicture: user.profilePicture,
+  emailVerificationToken: user.emailVerificationToken,
 });
 
 const generateRefreshToken = () => {
@@ -815,7 +817,7 @@ const logoutAllDevices = async (req: Request) => {
     return prisma.$transaction([
       prisma.refreshToken.updateMany({
         where: {
-          sessionId: session.id,
+          // sessionId: session.id,
           revoked: false,
         },
         data: {
@@ -849,7 +851,7 @@ const logoutAllDevices = async (req: Request) => {
 
 // === Refresh access token ===
 const refreshAccessToken = async (req: Request) => {
-  console.log("Server Request started.... : ", new Date().toLocaleTimeString());
+  console.log('Server Request started.... : ', new Date().toLocaleTimeString());
   const { refreshToken, hashedToken, expiresAt } = generateRefreshToken();
   const oldRefreshToken = authHeadersValidate(req);
 
@@ -877,7 +879,7 @@ const refreshAccessToken = async (req: Request) => {
   if (existingToken.revoked) {
     await executeDbOperation(async prisma => {
       return prisma.userSession.update({
-        where: { id: existingToken.sessionId as string},
+        where: { id: existingToken.sessionId as string },
         data: { isActive: false },
       });
     }, 'Deactivate Session on Revoked Token');

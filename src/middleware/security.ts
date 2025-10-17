@@ -1,3 +1,4 @@
+import { config } from '@/config/env.js';
 import cors from 'cors';
 import type { Request, RequestHandler } from 'express';
 import rateLimit from 'express-rate-limit';
@@ -109,8 +110,4 @@ export const requestSizeLimiter: RequestHandler = (req, res, next) => {
 };
 
 // Export all security middlewares
-export const securityMiddlewares = [
-  cors(corsOptions),
-  helmet(helmetOptions),
-  requestSizeLimiter,
-];
+export const securityMiddlewares = [cors(corsOptions), helmet(helmetOptions), requestSizeLimiter];
