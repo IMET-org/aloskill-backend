@@ -76,14 +76,14 @@ class JwtService {
   /**
    * Generate access and refresh token pair
    */
-  static generateTokenPair(user: { email: string; role: string }): TokenPair {
+  static generateTokenPair(user: { id: string; email: string; role: string }): TokenPair {
     const accessToken = this.generateToken(
-      { email: user.email, role: user.role },
+      { id: user.id, email: user.email, role: user.role },
       { expiresIn: config.ACCESS_TOKEN_EXPIRY, type: 'ACCESS' }
     );
 
     const refreshToken = this.generateToken(
-      { email: user.email, role: user.role },
+      { id: user.id, email: user.email, role: user.role },
       { expiresIn: config.REFRESH_TOKEN_EXPIRY, type: 'REFRESH' }
     );
 

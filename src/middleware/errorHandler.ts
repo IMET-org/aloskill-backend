@@ -208,7 +208,7 @@ export const errorHandler: ErrorRequestHandler = (err, req, res, _next) => {
   // Unknown error (mask in production)
   const safeMessage =
     config.NODE_ENV === 'production'
-      ? 'Internal server error'
+      ? 'Internal server errorrrrrrrrrr'
       : err instanceof Error
         ? err.message
         : String(err);

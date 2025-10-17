@@ -3,154 +3,212 @@ import { MailService } from '@/emails/mailService.js';
 import resetPasswordTemplate from '@/emails/templates/resetPassword.js';
 import signupWelcomeTemplate from '@/emails/templates/signupWelcome.js';
 import catchAsync from '@/utils/asyncHandler.js';
-import CookieService from '@/utils/cookies.js';
 import JwtService from '@/utils/jwt.js';
 import ResponseHandler from '@/utils/response.js';
+import { type Request, type Response } from 'express';
 import { authService } from './auth.service.js';
 
 const loginUser = catchAsync(async (req, res): Promise<void> => {
   const result = await authService.loginUser(req);
 
-  if (Array.isArray(result)) {
-    const [user, refreshToken] = result as [{ email: string; role: string }, { token: string }];
-
-    const accessToken = JwtService.generateToken(
-      { email: user.email, role: user.role },
-      { expiresIn: '1h', type: 'ACCESS' }
-    );
-    CookieService.setAuthCookies(res, accessToken, refreshToken.token);
-
-    ResponseHandler.ok(res, 'Login Successful', user);
-    return;
-  }
-
   if (!result) {
     throw new Error('Login failed');
   }
-
-  const { email, role, refreshTokens } = result as {
-    email: string;
-    role: string;
-    refreshTokens: { token: string }[];
+  const { user, refreshToken } = result as {
+    user: {
+      email: string;
+      role: string;
+      id: string;
+      firstName: string;
+      lastName: string;
+      profilePicture: string;
+    };
+    refreshToken: string;
   };
 
   const accessToken = JwtService.generateToken(
-    { email, role },
-    { expiresIn: '1h', type: 'ACCESS' }
+    { email: user.email, role: user.role },
+    { expiresIn: '15m', type: 'ACCESS' }
   );
-  CookieService.setAuthCookies(res, accessToken, refreshTokens[0].token);
 
-  ResponseHandler.ok(res, 'Login Successful', result);
+  ResponseHandler.ok(res, 'Login Successful', {
+    ...user,
+    accessToken,
+    refreshToken,
+  });
 });
 
 const registerUser = catchAsync(async (req, res): Promise<void> => {
   const result = await authService.registerUser(req);
 
-  if (Array.isArray(result)) {
-    const [user, refreshToken] = result as [
-      { email: string; role: string; emailVerificationToken: string },
-      { token: string },
-    ];
-
-    const accessToken = JwtService.generateToken(
-      { email: user.email, role: user.role },
-      { expiresIn: '1h', type: 'ACCESS' }
-    );
-    CookieService.setAuthCookies(res, accessToken, refreshToken.token);
-
-    if (user.email && user.emailVerificationToken) {
-      await MailService.sendEmail(user.email, 'Welcome to Aloskill!', signupWelcomeTemplate, {
-        name: 'Sumaiya Ahmed',
-        verificationLink: `http://localhost:5000/api/v1/auth/verify-user?id=${user?.id}&token=${user?.emailVerificationToken}`,
-      });
-    }
-    ResponseHandler.ok(res, 'Register Successful', user);
-    return;
-  }
-
   if (!result) {
     throw new Error('Registration failed');
   }
-
-  const { email, role, refreshTokens } = result as {
-    email: string;
-    role: string;
-    emailVerificationToken: string;
-    refreshTokens: { token: string }[];
+  const { user, refreshToken } = result as {
+    user: {
+      email: string;
+      role: string;
+      id: string;
+      firstName: string;
+      lastName: string;
+      profilePicture: string;
+      emailVerificationToken: string;
+    };
+    refreshToken: string;
   };
 
   const accessToken = JwtService.generateToken(
-    { email, role },
-    { expiresIn: '1h', type: 'ACCESS' }
+    { email: user.email, role: user.role },
+    { expiresIn: '15m', type: 'ACCESS' }
   );
-  CookieService.setAuthCookies(res, accessToken, refreshTokens[0].token);
 
-  if (result.email && result.emailVerificationToken) {
-    await MailService.sendEmail(result.email, 'Welcome to Aloskill!', signupWelcomeTemplate, {
-      name: 'Sumaiya Ahmed',
-      verificationLink: `http://localhost:5000/api/v1/auth/verify-user?id=${result?.id}&token=${result?.emailVerificationToken}`,
+  const { emailVerificationToken, ...separateUser } = user;
+
+  if (user.email && emailVerificationToken) {
+    await MailService.sendEmail(user.email, 'Welcome to Aloskill!', signupWelcomeTemplate, {
+      name: user.firstName,
+      verificationLink: `http://localhost:3000/auth/verify-user?id=${user?.id}&token=${emailVerificationToken}`,
     });
   }
 
-  ResponseHandler.ok(res, 'Register Successful', result);
+  ResponseHandler.ok(res, 'Register Successful', {
+    ...separateUser,
+    accessToken,
+    refreshToken,
+  });
 });
 
 const verifyUser = catchAsync(async (req, res): Promise<void> => {
   const result = await authService.verifyUser(req);
+
+  if (!result) {
+    throw new Error('Verification failed');
+  }
+
   ResponseHandler.ok(res, 'User Verified Successfully', result);
+});
+
+const resendVerificationEmail = catchAsync(async (req, res): Promise<void> => {
+  const result = await authService.resendVerificationEmail(req);
+
+  if (!result) {
+    throw new Error('Failed to resend verification email');
+  }
+
+  const { email, firstName, emailVerificationToken, id } = result as {
+    email: string;
+    firstName: string;
+    emailVerificationToken: string;
+    id: string;
+  };
+
+  // Send new verification email
+  await MailService.sendEmail(email, 'Verify your email address', signupWelcomeTemplate, {
+    name: firstName,
+    verificationLink: `http://localhost:3000/auth/verify-user?id=${id}&token=${emailVerificationToken}`,
+  });
+
+  ResponseHandler.ok(res, 'Verification email sent successfully', {
+    email,
+  });
 });
 
 const forgotPassword = catchAsync(async (req, res): Promise<void> => {
   const result = await authService.forgotPassword(req);
-  if (result) {
-    await MailService.sendEmail(
-      result.email,
-      'click here to reset your password',
-      resetPasswordTemplate,
-      {
-        name: 'Sumaiya Ahmed',
-        resetLink: `http://localhost:5000/api/v1/auth/verify-user?id=${result?.id}&token=${result?.passwordResetToken}`,
-      }
-    );
+
+  if (!result) {
+    throw new Error('Forgot Password failed');
   }
-  ResponseHandler.ok(res, 'Check your email for password reset link', result);
+
+  if (result) {
+    const { email, firstName, passwordResetToken, id } = result as {
+      email: string;
+      firstName: string;
+      passwordResetToken: string;
+      id: string;
+    };
+
+    await MailService.sendEmail(email, 'click here to reset your password', resetPasswordTemplate, {
+      name: firstName,
+      resetLink: `http://localhost:3000/auth/reset-password?id=${id}&token=${passwordResetToken}`,
+    });
+  }
+  ResponseHandler.ok(res, 'Check your email for password reset link', {
+    email: result.email,
+  });
 });
 
 const resetPassword = catchAsync(async (req, res): Promise<void> => {
   const result = await authService.resetPassword(req);
-  ResponseHandler.ok(res, 'Password Reseted Successfully', result);
+
+  if (!result) {
+    throw new Error('Reset Password failed');
+  }
+
+  ResponseHandler.ok(res, 'Password Reseted Successfully', {
+    email: result.email,
+  });
 });
 
 // === Logout current device ===
-const logoutCurrentDevice = catchAsync(async (req, res): Promise<void> => {
-  const result = await authService.logoutCurrentDevice(req);
+const logoutCurrentDevice = catchAsync(async (req: Request, res: Response): Promise<void> => {
+  const result = await authService.logoutCurrentDevice(req); // Call the service to handle the logic
 
-  res.clearCookie('refreshToken', {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
-  });
-
-  if (result.alreadyLoggedOut) {
-    ResponseHandler.ok(res, 'Already logged out');
-  } else {
-    ResponseHandler.ok(res, 'Logged out from current device');
+  if (!result) {
+    throw new Error('Logout failed');
   }
+  ResponseHandler.ok(res, 'Logged out of this device', result);
 });
 
 // === Logout all devices ===
 const logoutAllDevices = catchAsync(async (req, res): Promise<void> => {
   const result = await authService.logoutAllDevices(req);
-  CookieService.clearAuthCookies(res);
+  if (!result) {
+    throw new Error('Logout failed');
+  }
+
   ResponseHandler.ok(res, 'Logged out from all devices', result);
+});
+
+// === Refresh access token controller ===
+const refreshAccessToken = catchAsync(async (req, res): Promise<void> => {
+  const result = await authService.refreshAccessToken(req);
+
+  if (!result) {
+    throw new Error('Refresh token failed');
+  }
+
+  const { user, refreshToken } = result as {
+    user: {
+      email: string;
+      role: string;
+      id: string;
+      firstName: string;
+      lastName: string;
+      profilePicture: string;
+    };
+    refreshToken: string;
+  };
+  const accessToken = JwtService.generateToken(
+    { email: user.email, role: user.role },
+    { expiresIn: '150m', type: 'ACCESS' }
+  );
+
+  ResponseHandler.ok(res, 'Token refreshed', {
+    ...user,
+    accessToken,
+    refreshToken,
+  });
 });
 
 export const authController = {
   loginUser,
   registerUser,
   verifyUser,
+  resendVerificationEmail,
   forgotPassword,
   resetPassword,
   logoutCurrentDevice,
   logoutAllDevices,
+  refreshAccessToken,
 };

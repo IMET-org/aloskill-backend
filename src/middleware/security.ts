@@ -1,3 +1,4 @@
+import { config } from '@/config/env.js';
 import cors from 'cors';
 import type { Request, RequestHandler } from 'express';
 import rateLimit from 'express-rate-limit';
@@ -38,13 +39,38 @@ export const speedLimiter = slowDown({
 });
 
 // Advanced CORS configuration
+// export const corsOptions = {
+//   // origin: config.FRONTEND_URL,
+//   origin: (
+//     origin: string | undefined,
+//     callback: (err: Error | null, allowed?: boolean) => void
+//   ) => {
+//     const allowedOrigins = [
+//       'http://localhost:3000', // local dev
+//       'https://aloskill.com', // production (if applicable)
+//     ];
+
+//     // Allow requests with no origin (like mobile apps or curl)
+//     if (!origin || allowedOrigins.includes(origin)) {
+//       callback(null, true);
+//     } else {
+//       callback(new Error('Not allowed by CORS'));
+//     }
+//   },
+//   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+//   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+//   exposedHeaders: ['RateLimit-Limit', 'RateLimit-Remaining', 'RateLimit-Reset'],
+//   credentials: true,
+//   maxAge: 600,
+// };
+
 export const corsOptions = {
-  origin: process.env.FRONTEND_URL ?? ['http://localhost:3000'],
+  origin: [config.FRONTEND_URL, 'http://localhost:3000/'],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-  exposedHeaders: ['RateLimit-Limit', 'RateLimit-Remaining', 'RateLimit-Reset'],
+  exposedHeaders: ['RateLimit-Limit', 'RateLimit-Remaining', 'RateLimit-Reset', 'Set-Cookie'],
   credentials: true,
-  maxAge: 600, // 10 minutes
+  maxAge: 600,
 };
 
 // Security headers configuration
