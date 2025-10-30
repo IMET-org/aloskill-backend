@@ -130,7 +130,7 @@ enum EnrollmentStatus {
 
 enum InstructorRole {
   PRIMARY
-  COINSTRUCTOR
+  CO_INSTRUCTOR
 }
 
 enum QuestionType {
@@ -352,7 +352,7 @@ model InstructorProfile {
   bio           String?
   skills        Json? // array of strings
   website       String?
-  socialAccount SocialLink[]?
+  socialAccount SocialLink[]
   paymentId     String? // SSL Connect account id (or other payout id)
   isVerified    Boolean       @default(false)
   ratingAverage Decimal?      @default(0) @db.Decimal(2, 1)
@@ -364,7 +364,7 @@ model InstructorProfile {
   updatedAt     DateTime      @updatedAt
 
   // Relations
-  ownedCourses  Course[]  @relation("CourseOwner")  @relation(onDelete: Restrict)
+  ownedCourses  Course[]  @relation("CourseOwner",onDelete: Restrict)  
   courseInstructors CourseInstructor[]
   payouts           Payout[]
 
@@ -424,7 +424,7 @@ model Course {
   @@index([createdById])
   @@index([slug])
   @@index([status])
-  @@index([price])
+  @@index([originalPrice])
   @@index([ratingAverage])
   @@index([categoryId])
   @@index([createdAt])
@@ -543,7 +543,7 @@ model Enrollment {
 
   pricePaid   Decimal?  @db.Decimal(6, 2)
   currency    String   @default("BDT")
-  status      EnrollmentStatus    @default("ACTIVE")
+  status      EnrollmentStatus    @default(ACTIVE)
   progress    Decimal?  @default(0) @db.Decimal(5, 2)
   startedAt   DateTime  @default(now())
   completedAt DateTime?
@@ -624,7 +624,7 @@ model Order {
   userId              String
   totalAmount         Decimal @db.Decimal(10, 2)
   currency            String               @default("BDT")
-  status              OrderStatus          @default("PENDING")
+  status              OrderStatus          @default(PENDING)
   provider            PaymentProviders?
   providerOrderId     String?
   paymentTransactions PaymentTransaction[]
@@ -650,7 +650,7 @@ model OrderItem {
 
   price     Decimal  @db.Decimal(10, 2)
   currency  String?  @default("BDT")
-  status    OrderItemStatus   @default("PENDING")
+  status    OrderItemStatus   @default(PENDING)
   createdAt DateTime @default(now())
 
   @@unique([orderId, courseId])
@@ -670,7 +670,7 @@ model PaymentTransaction {
   order             Order?   @relation(fields: [orderId], references: [id], onDelete: SetNull)
   orderId           String?
 
-  paymentMethod     PaymentMethods?
+  paymentMethod     PaymentMethod?
   providerFee       Decimal? @db.Decimal(10, 2)
   providerTransactionId  String?  @unique
 
