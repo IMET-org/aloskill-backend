@@ -2,6 +2,7 @@
 /* eslint-disable require-await */
 /* eslint-disable @typescript-eslint/no-unnecessary-condition*/
 
+import '@/utils/cron.js';
 import 'dotenv/config';
 import type { Express } from 'express';
 import { type Server } from 'http';
