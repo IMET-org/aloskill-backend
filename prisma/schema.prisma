@@ -8,9 +8,6 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-
-// PHASE 1: Core User Authentication & Basic Profile
-
 // === CORE ENUMS ===
 enum UserRole {
   STUDENT
