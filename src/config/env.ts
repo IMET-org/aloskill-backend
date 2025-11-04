@@ -45,6 +45,7 @@ const envSchema = z.object({
   REDIS_PORT: z.string().default(process.env.REDIS_PORT as string),
   REDIS_PASSWORD: z.string().default(process.env.REDIS_PASSWORD as string),
   RESEND_API_KEY: z.string().default(process.env.RESEND_API_KEY as string),
+  PHONE_KEY: z.string().default(process.env.PHONE_KEY as string),
 });
 
 export const config = envSchema.parse(process.env);

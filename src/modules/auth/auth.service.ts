@@ -7,6 +7,7 @@ import { executeDbOperation } from '@/config/database.js';
 import type { DeviceInfo } from '@/types/deviceSessionStore.js';
 import { DeviceFingerprint } from '@/utils/deviceFingerprint.js';
 import { hash, verifyHash } from '@/utils/hashing.js';
+import { encryptPhoneNumber } from '@/utils/phoneNumber.js';
 import { UserStatus } from '@prisma/client';
 import crypto from 'crypto';
 import { type Request } from 'express';
@@ -16,28 +17,41 @@ const REFRESH_TOKEN_TTL = 7 * 24 * 60 * 60 * 1000;
 const LOGIN_USER_SELECT = {
   id: true,
   email: true,
-  role: true,
-  firstName: true,
-  lastName: true,
-  profilePicture: true,
+  avatarUrl: true,
+  assignedRole: {
+    select: {
+      role: true,
+    },
+  },
+  studentProfile: {
+    select: {
+      displayName: true,
+    },
+  },
+  instructorProfile: {
+    select: {
+      displayName: true,
+    },
+  },
 };
 
 const buildUserProfile = (user: {
   id: string;
   email: string;
-  role: string;
-  firstName: string;
-  lastName: string;
-  profilePicture: string | null;
-  emailVerificationToken?: string | null;
+  avatarUrl: string | null;
+  assignedRole: { role: string }[];
+  studentProfile?: { displayName: string } | null;
+  instructorProfile?: { displayName: string } | null;
+  emailVerificationTokenHash?: string | null;
+  passwordResetTokenHash?: string | null;
 }) => ({
   id: user.id,
   email: user.email,
-  role: user.role,
-  firstName: user.firstName,
-  lastName: user.lastName,
-  profilePicture: user.profilePicture,
-  emailVerificationToken: user.emailVerificationToken,
+  role: user.assignedRole[0].role,
+  displayName: user.studentProfile?.displayName ?? user.instructorProfile?.displayName,
+  profilePicture: user.avatarUrl,
+  emailVerificationToken: user.emailVerificationTokenHash,
+  passwordResetToken: user.passwordResetTokenHash,
 });
 
 const generateRefreshToken = () => {
@@ -229,14 +243,26 @@ const loginUser = async (req: Request) => {
           where: {
             id: user.id,
           },
-          data: {
-            loginAttempts: {
-              increment: 1,
-            },
-            ...(user.loginAttempts + 1 >= 5 && {
-              lockUntil: new Date(Date.now() + 30 * 60 * 1000),
-            }),
-          },
+          data: (() => {
+            const shouldResetAttempts =
+              !user.failedLoginAt || user.failedLoginAt < new Date(Date.now() - 30 * 60 * 1000);
+            const newAttemptCount = shouldResetAttempts ? 1 : user.loginAttempts + 1;
+
+            const updatePayload: any = shouldResetAttempts
+              ? {
+                  loginAttempts: 1,
+                  failedLoginAt: new Date(),
+                }
+              : {
+                  loginAttempts: { increment: 1 },
+                };
+
+            if (newAttemptCount >= 5) {
+              const lockUntilTime = new Date(Date.now() + 1 * 60 * 60 * 1000);
+              updatePayload.lockUntil = lockUntilTime;
+            }
+            return updatePayload;
+          })(),
         });
       }, 'update user');
       throw new Error(
@@ -256,6 +282,7 @@ const loginUser = async (req: Request) => {
           data: {
             loginAttempts: 0,
             lockUntil: null,
+            failedLoginAt: null,
             lastLogin: new Date(),
             lastLoginIP: deviceData.ipAddress,
           },
@@ -377,9 +404,6 @@ const registerUser = async (req: Request) => {
       where: {
         email: data.email,
       },
-      include: {
-        sessions: true,
-      },
     });
   }, 'User Exist');
 
@@ -387,17 +411,43 @@ const registerUser = async (req: Request) => {
     if (password) {
       const hashedPassword = await hash(password as string);
       data.password = hashedPassword;
+      const { email, avatarUrl, password: hashPassword, role, phoneNumber, ...restData } = data;
+      const encryptedPhoneNumber = encryptPhoneNumber(phoneNumber as string);
+      restData.encryptedPhone = encryptedPhoneNumber;
+      restData.phoneLastFour = phoneNumber.slice(-4);
 
       const user = await executeDbOperation(async prisma => {
         return prisma.user.create({
           data: {
-            ...data,
-            emailVerificationToken: crypto.randomBytes(64).toString('hex'),
+            email,
+            password: hashPassword,
+            avatarUrl,
+            emailVerificationTokenHash: crypto.randomBytes(64).toString('hex'),
             emailVerificationExpires: new Date(Date.now() + 6 * 60 * 60 * 1000),
+            assignedRole: {
+              create: {
+                role,
+              },
+            },
+            ...(data.role === 'INSTRUCTOR'
+              ? {
+                  instructorProfile: {
+                    create: {
+                      ...restData,
+                    },
+                  },
+                }
+              : {
+                  studentProfile: {
+                    create: {
+                      ...restData,
+                    },
+                  },
+                }),
           },
           select: {
             ...LOGIN_USER_SELECT,
-            emailVerificationToken: true,
+            emailVerificationTokenHash: true,
           },
         });
       }, 'create user');
@@ -409,9 +459,16 @@ const registerUser = async (req: Request) => {
     }
     if (googleId) {
       const user = await executeDbOperation(async prisma => {
+        const { email, avatarUrl, phoneNumber, role, googleId: google, ...restData } = data;
+        const encryptedPhoneNumber = encryptPhoneNumber(phoneNumber as string);
+        restData.encryptedPhone = encryptedPhoneNumber;
+        restData.phoneLastFour = phoneNumber.slice(-4);
+
         return prisma.user.create({
           data: {
-            ...data,
+            email,
+            avatarUrl,
+            googleId: google,
             isEmailVerified: true,
             status: UserStatus.ACTIVE,
             lastLogin: new Date(),
@@ -431,10 +488,20 @@ const registerUser = async (req: Request) => {
                 },
               },
             },
+            assignedRole: {
+              create: {
+                role,
+              },
+            },
+            studentProfile: {
+              create: {
+                ...restData
+              },
+            },
           },
           select: {
             ...LOGIN_USER_SELECT,
-            emailVerificationToken: true,
+            emailVerificationTokenHash: true,
           },
         });
       }, 'create user');
@@ -448,7 +515,7 @@ const registerUser = async (req: Request) => {
 
   if (existingUser) {
     if (password) {
-      if (existingUser.password && existingUser.emailVerificationToken) {
+      if (existingUser.password && existingUser.emailVerificationTokenHash) {
         throw new Error('Email already sent, verify it and try to login');
       }
       if (existingUser.password) {
@@ -483,7 +550,7 @@ const registerUser = async (req: Request) => {
           },
           data: {
             googleId: googleId as string,
-            emailVerificationToken: null,
+            emailVerificationTokenHash: null,
             emailVerificationExpires: null,
             isEmailVerified: true,
             status: UserStatus.ACTIVE,
@@ -522,7 +589,7 @@ const verifyUser = async (req: Request) => {
   if (!user) {
     throw new Error('User Does Not Exist');
   } else {
-    if (user.emailVerificationToken !== token) {
+    if (user.emailVerificationTokenHash !== token) {
       throw new Error('Invalid Verification Link');
     } else {
       if (new Date(user.emailVerificationExpires as unknown as number) < new Date()) {
@@ -536,7 +603,7 @@ const verifyUser = async (req: Request) => {
             data: {
               isEmailVerified: true,
               status: UserStatus.ACTIVE,
-              emailVerificationToken: null,
+              emailVerificationTokenHash: null,
               emailVerificationExpires: null,
             },
             select: LOGIN_USER_SELECT,
@@ -576,18 +643,18 @@ const resendVerificationEmail = async (req: Request) => {
     return prisma.user.update({
       where: { id: user.id },
       data: {
-        emailVerificationToken: verificationToken,
+        emailVerificationTokenHash: verificationToken,
         emailVerificationExpires: verificationExpires,
         status: UserStatus.PENDING_VERIFICATION,
       },
       select: {
         ...LOGIN_USER_SELECT,
-        emailVerificationToken: true,
+        emailVerificationTokenHash: true,
       },
     });
   }, 'Resend Verification Email');
 
-  return updatedUser;
+  return buildUserProfile(updatedUser);
 };
 
 const forgotPassword = async (req: Request) => {
@@ -617,16 +684,16 @@ const forgotPassword = async (req: Request) => {
             id: user.id,
           },
           data: {
-            passwordResetToken: refreshToken,
+            passwordResetTokenHash: refreshToken,
             passwordResetExpires: new Date(Date.now() + 12 * 60 * 60 * 1000),
           },
           select: {
             ...LOGIN_USER_SELECT,
-            passwordResetToken: true,
+            passwordResetTokenHash: true,
           },
         });
       }, 'Forgot Password');
-      return forgotPasswordUser;
+      return buildUserProfile(forgotPasswordUser);
     }
   }
 };
@@ -646,7 +713,7 @@ const resetPassword = async (req: Request) => {
   if (!user) {
     throw new Error('User Not Found');
   }
-  if (user.passwordResetToken !== token) {
+  if (user.passwordResetTokenHash !== token) {
     throw new Error('Invalid Reset Token');
   } else {
     if (new Date(user.passwordResetExpires as unknown as number) < new Date()) {
@@ -661,7 +728,7 @@ const resetPassword = async (req: Request) => {
           data: {
             password: hashedConfirmPassword,
             passwordChangedAt: new Date(),
-            passwordResetToken: null,
+            passwordResetTokenHash: null,
             passwordResetExpires: null,
           },
           select: LOGIN_USER_SELECT,
@@ -686,7 +753,7 @@ const changePassword = async (req: Request) => {
   if (!user) {
     throw new Error('User Not Found');
   }
-  if (user.passwordResetToken !== token) {
+  if (user.passwordResetTokenHash !== token) {
     throw new Error('Invalid Reset Token');
   } else {
     if (new Date(user.passwordResetExpires as unknown as number) < new Date()) {
@@ -705,7 +772,7 @@ const changePassword = async (req: Request) => {
             data: {
               password: hashedNewPassword,
               passwordChangedAt: new Date(),
-              passwordResetToken: null,
+              passwordResetTokenHash: null,
               passwordResetExpires: null,
             },
             select: LOGIN_USER_SELECT,
@@ -851,7 +918,6 @@ const logoutAllDevices = async (req: Request) => {
 
 // === Refresh access token ===
 const refreshAccessToken = async (req: Request) => {
-  console.log('Server Request started.... : ', new Date().toLocaleTimeString());
   const { refreshToken, hashedToken, expiresAt } = generateRefreshToken();
   const oldRefreshToken = authHeadersValidate(req);
 
@@ -860,8 +926,6 @@ const refreshAccessToken = async (req: Request) => {
   }
 
   const hashedOldToken = hashRefreshToken(oldRefreshToken);
-
-  console.log('Refresh token in server : ', hashedOldToken);
 
   // 1️⃣ Find the existing refresh token
   const existingToken = await executeDbOperation(async prisma => {
@@ -872,7 +936,7 @@ const refreshAccessToken = async (req: Request) => {
   }, 'Find Existing Refresh Token');
 
   if (!existingToken) {
-    throw new Error('Refresh token not found or already revoked.');
+    throw new Error('Token not found');
   }
 
   // Check if expired or revoked
@@ -959,7 +1023,7 @@ const refreshAccessToken = async (req: Request) => {
   }
 
   return {
-    user: updatedSession.user,
+    user: buildUserProfile(updatedSession.user),
     refreshToken,
   };
 };

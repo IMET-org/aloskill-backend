@@ -19,8 +19,7 @@ const loginUser = catchAsync(async (req, res): Promise<void> => {
       email: string;
       role: string;
       id: string;
-      firstName: string;
-      lastName: string;
+      displayName: string;
       profilePicture: string;
     };
     refreshToken: string;
@@ -49,8 +48,7 @@ const registerUser = catchAsync(async (req, res): Promise<void> => {
       email: string;
       role: string;
       id: string;
-      firstName: string;
-      lastName: string;
+      displayName: string;
       profilePicture: string;
       emailVerificationToken: string;
     };
@@ -66,7 +64,7 @@ const registerUser = catchAsync(async (req, res): Promise<void> => {
 
   if (user.email && emailVerificationToken) {
     await MailService.sendEmail(user.email, 'Welcome to Aloskill!', signupWelcomeTemplate, {
-      name: user.firstName,
+      name: user.displayName,
       verificationLink: `http://localhost:3000/auth/verify-user?id=${user?.id}&token=${emailVerificationToken}`,
     });
   }
@@ -95,16 +93,16 @@ const resendVerificationEmail = catchAsync(async (req, res): Promise<void> => {
     throw new Error('Failed to resend verification email');
   }
 
-  const { email, firstName, emailVerificationToken, id } = result as {
+  const { email, displayName, emailVerificationToken, id } = result as {
     email: string;
-    firstName: string;
+    displayName: string;
     emailVerificationToken: string;
     id: string;
   };
 
   // Send new verification email
   await MailService.sendEmail(email, 'Verify your email address', signupWelcomeTemplate, {
-    name: firstName,
+    name: displayName,
     verificationLink: `http://localhost:3000/auth/verify-user?id=${id}&token=${emailVerificationToken}`,
   });
 
@@ -121,15 +119,15 @@ const forgotPassword = catchAsync(async (req, res): Promise<void> => {
   }
 
   if (result) {
-    const { email, firstName, passwordResetToken, id } = result as {
+    const { email, displayName, passwordResetToken, id } = result as {
       email: string;
-      firstName: string;
+      displayName: string;
       passwordResetToken: string;
       id: string;
     };
 
     await MailService.sendEmail(email, 'click here to reset your password', resetPasswordTemplate, {
-      name: firstName,
+      name: displayName,
       resetLink: `http://localhost:3000/auth/reset-password?id=${id}&token=${passwordResetToken}`,
     });
   }
@@ -183,8 +181,7 @@ const refreshAccessToken = catchAsync(async (req, res): Promise<void> => {
       email: string;
       role: string;
       id: string;
-      firstName: string;
-      lastName: string;
+      displayName: string;
       profilePicture: string;
     };
     refreshToken: string;

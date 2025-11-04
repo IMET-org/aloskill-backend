@@ -10,8 +10,7 @@ export const loginSchema = z.object({
 
 export const registerSchema = z.object({
   body: z.object({
-    firstName: z.string().min(3, 'firstName must be at least 3 characters'),
-    lastName: z.string().min(3, 'lastName must be at least 3 characters'),
+    displayName: z.string().min(3, 'Name must be at least 3 characters'),
     email: z.email('Invalid email address'),
     password: z
       .string()
@@ -20,9 +19,10 @@ export const registerSchema = z.object({
       .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
       .regex(/[0-9]/, 'Password must contain at least one number')
       .optional(),
-    role: z.enum(['STUDENT', 'INSTRUCTOR']).optional(),
+    role: z.enum(['STUDENT', 'INSTRUCTOR']),
     googleId: z.string().optional(),
-    profilePicture: z.string().optional(),
+    gender: z.enum(['MALE', 'FEMALE']),
+    avatarUrl: z.string().optional(),
     bio: z.string().max(150, 'Bio must be less than 150 characters').optional(),
     phoneNumber: z.string().max(14, 'Phone Number must be less than 14 characters').optional(),
   }),
