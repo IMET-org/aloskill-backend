@@ -367,11 +367,11 @@ model InstructorProfile {
   encryptedPhone String
   phoneLastFour  String   @db.Char(4)
   address        String   @db.VarChar(255)
-  city           String   @db.VarChar(50)
+  city           String   @db.VarChar(20)
 
   //== Professional Info
   qualifications String
-  experience     Decimal  @default(0) @db.Decimal(5, 2)
+  experience     Int  @default(0) @db.SmallInt()
   expertise      String?
   currentOrg     String?
 

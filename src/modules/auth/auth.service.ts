@@ -8,7 +8,7 @@ import type { DeviceInfo } from '@/types/deviceSessionStore.js';
 import { DeviceFingerprint } from '@/utils/deviceFingerprint.js';
 import { hash, verifyHash } from '@/utils/hashing.js';
 import { encryptPhoneNumber } from '@/utils/phoneNumber.js';
-import { UserStatus } from '@prisma/client';
+import { UserRole, UserStatus } from '@prisma/client';
 import crypto from 'crypto';
 import { type Request } from 'express';
 
@@ -47,7 +47,7 @@ const buildUserProfile = (user: {
 }) => ({
   id: user.id,
   email: user.email,
-  role: user.assignedRole[0].role,
+  role: user.assignedRole.map(data => data.role),
   displayName: user.studentProfile?.displayName ?? user.instructorProfile?.displayName,
   profilePicture: user.avatarUrl,
   emailVerificationToken: user.emailVerificationTokenHash,
@@ -386,7 +386,7 @@ const loginUser = async (req: Request) => {
   throw new Error('Invalid login payload');
 };
 
-const registerUser = async (req: Request) => {
+const registerStudent = async (req: Request) => {
   const data = req.body;
   const deviceData = req.deviceInfo as DeviceInfo;
   const { password, googleId } = data;
@@ -411,7 +411,7 @@ const registerUser = async (req: Request) => {
     if (password) {
       const hashedPassword = await hash(password as string);
       data.password = hashedPassword;
-      const { email, avatarUrl, password: hashPassword, role, phoneNumber, ...restData } = data;
+      const { email, avatarUrl, password: hashPassword, phoneNumber, ...restData } = data;
       const encryptedPhoneNumber = encryptPhoneNumber(phoneNumber as string);
       restData.encryptedPhone = encryptedPhoneNumber;
       restData.phoneLastFour = phoneNumber.slice(-4);
@@ -426,24 +426,14 @@ const registerUser = async (req: Request) => {
             emailVerificationExpires: new Date(Date.now() + 6 * 60 * 60 * 1000),
             assignedRole: {
               create: {
-                role,
+                role: UserRole.STUDENT,
               },
             },
-            ...(data.role === 'INSTRUCTOR'
-              ? {
-                  instructorProfile: {
-                    create: {
-                      ...restData,
-                    },
-                  },
-                }
-              : {
-                  studentProfile: {
-                    create: {
-                      ...restData,
-                    },
-                  },
-                }),
+            studentProfile: {
+              create: {
+                ...restData,
+              },
+            },
           },
           select: {
             ...LOGIN_USER_SELECT,
@@ -459,7 +449,7 @@ const registerUser = async (req: Request) => {
     }
     if (googleId) {
       const user = await executeDbOperation(async prisma => {
-        const { email, avatarUrl, phoneNumber, role, googleId: google, ...restData } = data;
+        const { email, avatarUrl, phoneNumber, googleId: google, ...restData } = data;
         const encryptedPhoneNumber = encryptPhoneNumber(phoneNumber as string);
         restData.encryptedPhone = encryptedPhoneNumber;
         restData.phoneLastFour = phoneNumber.slice(-4);
@@ -490,12 +480,12 @@ const registerUser = async (req: Request) => {
             },
             assignedRole: {
               create: {
-                role,
+                role: UserRole.STUDENT,
               },
             },
             studentProfile: {
               create: {
-                ...restData
+                ...restData,
               },
             },
           },
@@ -1030,7 +1020,7 @@ const refreshAccessToken = async (req: Request) => {
 
 export const authService = {
   loginUser,
-  registerUser,
+  registerStudent,
   verifyUser,
   resendVerificationEmail,
   forgotPassword,
