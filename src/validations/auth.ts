@@ -28,7 +28,7 @@ export const registerSchema = z.object({
 });
 
 export const InstructorProfileSchema = z.object({
-  displayName: z.string().min(3, 'Display name must be at least 3 characters long.'),
+  displayName: z.string().min(3, 'Display name must be at least 3 characters long.').regex(/^[a-zA-Z\s]+$/, 'Only letters and spaces allowed for display name.'),
   DOB: z.coerce
     .date({
       error: 'Date of Birth is required.',
@@ -40,7 +40,7 @@ export const InstructorProfileSchema = z.object({
       return date <= eighteenYearsAgo;
     }, 'Instructor must be at least 18 years old.'),
   gender: z.enum(['MALE', 'FEMALE']),
-  nationality: z.string().min(2, 'Nationality is required.'),
+  nationality: z.string().min(2, 'Nationality is required.').regex(/^[a-zA-Z\s]+$/, 'Only letters and spaces allowed for nationality.'),
   // == Contact Info
   phoneNumber: z.string().min(11, 'Phone data is required.'),
   address: z

@@ -141,6 +141,11 @@ enum QuestionType {
   MULTI_SELECT
 }
 
+enum ApplicationStatus {
+  PENDING
+  APPROVED  
+  REJECTED
+}
 
 // === MODELS===//
 model User {
@@ -376,15 +381,12 @@ model InstructorProfile {
   currentOrg     String?
 
   //== Course Info
-  proposedCourse String
+  proposedCourseCategory String
   courseLevel    CourseLevel
   courseType     CourseType
-  courseInfo     String
-  duration       String
-  proposedPrice  Decimal     @db.Decimal(6, 2)
 
   //== Content & Teaching Skills
-  teachingExperience   Decimal?         @default(0) @db.Decimal(5, 2)
+  teachingExperience   Decimal?   @default(0) @db.Decimal(5, 2)
   prevTeachingApproach TeachingApproach
   language             String
   demoVideo            String?
@@ -395,14 +397,15 @@ model InstructorProfile {
   website       String?
   socialAccount SocialLink[]
   paymentId     String? // SSL Connect account id (or other payout id)
-  isVerified    Boolean       @default(false)
+  status        ApplicationStatus @default(PENDING)
+  rejectionReason   String?
   ratingAverage Decimal?      @default(0) @db.Decimal(2, 1)
   ratingCount   Int           @default(0)
   totalStudents Int           @default(0)
   totalCourses  Int           @default(0)
   totalRevenueAmount Decimal  @db.Decimal(15, 2) @default(0)
-  totalRefunds       Decimal? @db.Decimal(15, 2) @default(0)
-  canBeDeleted  Boolean       @default(true)
+  totalRefunds       Decimal  @db.Decimal(15, 2) @default(0)
+
   deletedAt     DateTime?
   deletionReason String?
   createdAt     DateTime      @default(now())
@@ -414,7 +417,7 @@ model InstructorProfile {
   payouts           Payout[]
 
   @@index([userId])
-  @@index([isVerified])
+  @@index([status])
   @@index([ratingAverage])
   @@index([deletedAt])
 }
