@@ -17,7 +17,7 @@ const loginUser = catchAsync(async (req, res): Promise<void> => {
   const { user, refreshToken } = result as {
     user: {
       email: string;
-      role: string;
+      role: string[];
       id: string;
       displayName: string;
       profilePicture: string;
@@ -46,7 +46,7 @@ const registerUser = catchAsync(async (req, res): Promise<void> => {
   const { user, refreshToken } = result as {
     user: {
       email: string;
-      role: string;
+      role: string[];
       id: string;
       displayName: string;
       profilePicture: string;
@@ -179,7 +179,7 @@ const refreshAccessToken = catchAsync(async (req, res): Promise<void> => {
   const { user, refreshToken } = result as {
     user: {
       email: string;
-      role: string;
+      role: string[];
       id: string;
       displayName: string;
       profilePicture: string;

@@ -19,7 +19,6 @@ export const registerSchema = z.object({
       .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
       .regex(/[0-9]/, 'Password must contain at least one number')
       .optional(),
-    role: z.enum(['STUDENT', 'INSTRUCTOR']),
     googleId: z.string().optional(),
     gender: z.enum(['MALE', 'FEMALE']),
     avatarUrl: z.string().optional(),
@@ -64,4 +63,3 @@ export const resetSchema = z.object({
     token: z.string('Token is required'),
   }),
 });
-
