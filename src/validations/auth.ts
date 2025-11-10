@@ -27,6 +27,87 @@ export const registerSchema = z.object({
   }),
 });
 
+export const InstructorProfileSchema = z.object({
+  displayName: z.string().min(3, 'Display name must be at least 3 characters long.').regex(/^[a-zA-Z\s]+$/, 'Only letters and spaces allowed for display name.'),
+  DOB: z.coerce
+    .date({
+      error: 'Date of Birth is required.',
+    })
+    .max(new Date(), 'DOB cannot be in the future.')
+    .refine(date => {
+      const eighteenYearsAgo = new Date();
+      eighteenYearsAgo.setFullYear(eighteenYearsAgo.getFullYear() - 18);
+      return date <= eighteenYearsAgo;
+    }, 'Instructor must be at least 18 years old.'),
+  gender: z.enum(['MALE', 'FEMALE']),
+  nationality: z.string().min(2, 'Nationality is required.').regex(/^[a-zA-Z\s]+$/, 'Only letters and spaces allowed for nationality.'),
+  // == Contact Info
+  phoneNumber: z.string().min(11, 'Phone data is required.'),
+  address: z
+    .string()
+    .min(5, 'Address is required.')
+    .max(255, `Address cannot exceed 255 characters.`),
+  city: z.string().min(2, 'City is required.').max(20, `City cannot exceed 20 characters.`),
+  // == Professional Info
+  qualifications: z.string().min(5, 'Qualifications details are required.'),
+  experience: z.number().min(0).max(50).default(0),
+  expertise: z.string().min(3).optional().nullable(),
+  currentOrg: z.string().min(3).optional().nullable(),
+  // == Course Info
+  proposedCourse: z.string().min(5, 'Proposed course title is required.'),
+  courseLevel: z.enum(['BEGINNER', 'INTERMEDIATE', 'ADVANCED', 'EXPERT']),
+  courseType: z.enum(['LIVE', 'PRE_RECORDED', 'HYBRID', 'SELF_STUDY']),
+  courseInfo: z.string().min(20, 'Detailed course information is required.'),
+  duration: z.string().min(5, "Course duration is required (e.g., '10 weeks', '40 hours')."),
+  proposedPrice: z.number().min(0, 'Proposed price must be positive.').max(9999.99),
+  // == Content & Teaching Skills
+  teachingExperience: z.number().min(0).max(50).optional().default(0),
+  prevTeachingApproach: z.enum([
+    'ACTIVITY_BASED',
+    'LECTURE_BASED',
+    'FLIPPED_CLASSROOM',
+    'PROJECT_BASED',
+  ]),
+  language: z.string().min(2, 'Teaching language is required.'),
+  demoVideo: z
+    .url({
+      protocol: /^https?$/,
+      hostname: z.regexes.domain,
+      error: 'Demo video must be a valid URL (including https protocol).',
+    })
+    .optional()
+    .nullable(),
+  // == Others Info
+  bio: z.string().min(10).optional().nullable(),
+  skills: z
+    .array(
+      z
+        .string({ error: 'Skills must be an array of strings' })
+        .min(3, 'Each skill must have at least 3 characters')
+    )
+    .optional(),
+  website: z
+    .url({
+      protocol: /^https?$/,
+      hostname: z.regexes.domain,
+      error: 'Website must be a valid URL (including https protocol).',
+    })
+    .optional()
+    .nullable(),
+  socialAccount: z
+    .array(
+      z.object({
+        platform: z.string().min(1, 'Social platform name is required.'),
+        url: z.url({
+          protocol: /^https?$/,
+          hostname: z.regexes.domain,
+          error: 'Social URL must be a valid URL (including https protocol).',
+        }),
+      })
+    )
+    .optional(),
+});
+
 export const verifyUserSchema = z.object({
   body: z.object({
     id: z.string('ID is required'),

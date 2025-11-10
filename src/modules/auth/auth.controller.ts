@@ -37,8 +37,8 @@ const loginUser = catchAsync(async (req, res): Promise<void> => {
   });
 });
 
-const registerUser = catchAsync(async (req, res): Promise<void> => {
-  const result = await authService.registerUser(req);
+const registerStudent = catchAsync(async (req, res): Promise<void> => {
+  const result = await authService.registerStudent(req);
 
   if (!result) {
     throw new Error('Registration failed');
@@ -200,7 +200,7 @@ const refreshAccessToken = catchAsync(async (req, res): Promise<void> => {
 
 export const authController = {
   loginUser,
-  registerUser,
+  registerStudent,
   verifyUser,
   resendVerificationEmail,
   forgotPassword,

@@ -386,7 +386,7 @@ const loginUser = async (req: Request) => {
   throw new Error('Invalid login payload');
 };
 
-const registerUser = async (req: Request) => {
+const registerStudent = async (req: Request) => {
   const data = req.body;
   const deviceData = req.deviceInfo as DeviceInfo;
   const { password, googleId } = data;
@@ -449,7 +449,7 @@ const registerUser = async (req: Request) => {
     }
     if (googleId) {
       const user = await executeDbOperation(async prisma => {
-        const { email, avatarUrl, phoneNumber, role, googleId: google, ...restData } = data;
+        const { email, avatarUrl, phoneNumber, googleId: google, ...restData } = data;
         const encryptedPhoneNumber = encryptPhoneNumber(phoneNumber as string);
         restData.encryptedPhone = encryptedPhoneNumber;
         restData.phoneLastFour = phoneNumber.slice(-4);
@@ -480,7 +480,7 @@ const registerUser = async (req: Request) => {
             },
             assignedRole: {
               create: {
-                role,
+                role: UserRole.STUDENT,
               },
             },
             studentProfile: {
@@ -1020,7 +1020,7 @@ const refreshAccessToken = async (req: Request) => {
 
 export const authService = {
   loginUser,
-  registerUser,
+  registerStudent,
   verifyUser,
   resendVerificationEmail,
   forgotPassword,

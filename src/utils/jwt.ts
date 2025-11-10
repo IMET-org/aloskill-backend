@@ -4,7 +4,7 @@ import {
   JwtInvalidError,
   JwtMissingError,
 } from '@/middleware/errorHandler.js';
-import type { JwtPayload, TokenOptions, TokenPair, TokenType } from '@/types/jwt.types.js';
+import type { JwtPayload, TokenOptions, TokenType } from '@/types/jwt.types.js';
 import jwt from 'jsonwebtoken';
 import { config } from '../config/env.js';
 
@@ -71,23 +71,6 @@ class JwtService {
       }
       throw new JwtInvalidError('Failed to verify token');
     }
-  }
-
-  /**
-   * Generate access and refresh token pair
-   */
-  static generateTokenPair(user: { id: string; email: string; role: string }): TokenPair {
-    const accessToken = this.generateToken(
-      { id: user.id, email: user.email, role: user.role },
-      { expiresIn: config.ACCESS_TOKEN_EXPIRY, type: 'ACCESS' }
-    );
-
-    const refreshToken = this.generateToken(
-      { id: user.id, email: user.email, role: user.role },
-      { expiresIn: config.REFRESH_TOKEN_EXPIRY, type: 'REFRESH' }
-    );
-
-    return { accessToken, refreshToken };
   }
 
   /**
