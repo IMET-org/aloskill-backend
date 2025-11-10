@@ -60,7 +60,13 @@ const getSingleUser = async (req: Request) => {
     throw new Error('User does not exist');
   }
 
-  return buildUserProfile(user);
+  if (user.instructorProfile) {
+    throw new Error('Instructor Profile already exists');
+  }
+
+  return {
+    canProceed: true,
+  };
 };
 
 export const userService = {
