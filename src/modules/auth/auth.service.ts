@@ -17,6 +17,7 @@ const REFRESH_TOKEN_TTL = 7 * 24 * 60 * 60 * 1000;
 const LOGIN_USER_SELECT = {
   id: true,
   email: true,
+  status: true,
   avatarUrl: true,
   assignedRole: {
     select: {
@@ -38,6 +39,7 @@ const LOGIN_USER_SELECT = {
 const buildUserProfile = (user: {
   id: string;
   email: string;
+  status: UserStatus;
   avatarUrl: string | null;
   assignedRole: { role: string }[];
   studentProfile?: { displayName: string } | null;
@@ -47,6 +49,7 @@ const buildUserProfile = (user: {
 }) => ({
   id: user.id,
   email: user.email,
+  status: user.status,
   role: user.assignedRole.map(data => data.role),
   displayName: user.studentProfile?.displayName ?? user.instructorProfile?.displayName,
   profilePicture: user.avatarUrl,
@@ -98,6 +101,10 @@ const loginUser = async (req: Request) => {
 
   if (!user) {
     throw new Error('User does not exist');
+  }
+
+  if (user.status !== UserStatus.ACTIVE) {
+    throw new Error('Your account has been deactivated or Suspended');
   }
 
   // Enforce device limit (3 devices max)
@@ -504,6 +511,10 @@ const registerStudent = async (req: Request) => {
   }
 
   if (existingUser) {
+    if(existingUser.status !== UserStatus.INACTIVE) {
+      throw new Error('Your account is Inactive or Suspended');
+    };
+
     if (password) {
       if (existingUser.password && existingUser.emailVerificationTokenHash) {
         throw new Error('Email already sent, verify it and try to login');
@@ -555,6 +566,122 @@ const registerStudent = async (req: Request) => {
       };
     }
   }
+};
+
+const registerInstructor = async (req: Request) => {
+  const data = req.body;
+  if (data.DOB) {
+    data.DOB = new Date(data.DOB as string);
+  };
+
+  if (!data.email) {
+    throw new Error('User Email not found');
+  }
+
+  const existingUser = await executeDbOperation(async prisma => {
+    return prisma.user.findUnique({
+      where: {
+        email: data.email,
+      },
+      select: LOGIN_USER_SELECT,
+    });
+  }, 'User Exist in Instructor Registration');
+
+  if (!existingUser) {
+    if (!data.password) {
+      throw new Error('Password Required for Instructor Registration');
+    }
+    const hashedPassword = await hash(data.password as string);
+    data.password = hashedPassword;
+    const { email, password, phoneNumber, skills, socialAccount, ...restData } = data;
+    const encryptedPhoneNumber = encryptPhoneNumber(phoneNumber as string);
+    restData.encryptedPhone = encryptedPhoneNumber;
+    restData.phoneLastFour = phoneNumber.slice(-4);
+
+    const user = await executeDbOperation(async prisma => {
+      return prisma.user.create({
+        data: {
+          email,
+          password,
+          emailVerificationTokenHash: crypto.randomBytes(64).toString('hex'),
+          emailVerificationExpires: new Date(Date.now() + 6 * 60 * 60 * 1000),
+          instructorProfile: {
+            create: {
+              ...restData,
+              skills: {
+                createMany: {
+                  data: skills.map((skillName: string) => ({
+                    skill: skillName,
+                  })),
+                  skipDuplicates: true,
+                },
+              },
+              socialAccount: {
+                createMany: {
+                  data: socialAccount.map((social: any) => ({ ...social })),
+                  skipDuplicates: true,
+                },
+              },
+            },
+          },
+        },
+        select: {
+          ...LOGIN_USER_SELECT,
+          emailVerificationTokenHash: true,
+        },
+      });
+    }, 'create instructor profile');
+
+    return buildUserProfile(user);
+  }
+
+  if (existingUser.status === UserStatus.INACTIVE) {
+    throw new Error('Your account has been deactivated or Suspended');
+  }
+
+  if (existingUser?.instructorProfile) {
+    throw new Error('Profile Already Exists with this email');
+  }
+
+  // === If user exist but does not have an instructor profile ===
+  const { email: _email, password: _password, phoneNumber, skills, socialAccount, ...restData } = data;
+  const encryptedPhoneNumber = encryptPhoneNumber(phoneNumber as string);
+  restData.encryptedPhone = encryptedPhoneNumber;
+  restData.phoneLastFour = phoneNumber.slice(-4);
+
+  const user = await executeDbOperation(async prisma => {
+    return prisma.user.update({
+      where: {
+        email: data.email,
+      },
+      data: {
+        instructorProfile: {
+          create: {
+            ...restData,
+            skills: {
+              createMany: {
+                data: skills.map((skillName:string) => ({
+                  skill: skillName,
+                })),
+                skipDuplicates: true,
+              },
+            },
+            socialAccount: {
+              createMany: {
+                data: socialAccount.map((social:any) => ({...social})),
+                skipDuplicates: true,
+              }
+            }
+          },
+        },
+      },
+      select: {
+        ...LOGIN_USER_SELECT,
+      },
+    });
+  }, 'create instructor profile');
+
+  return buildUserProfile(user);
 };
 
 const verifyUser = async (req: Request) => {
@@ -1021,6 +1148,7 @@ const refreshAccessToken = async (req: Request) => {
 export const authService = {
   loginUser,
   registerStudent,
+  registerInstructor,
   verifyUser,
   resendVerificationEmail,
   forgotPassword,

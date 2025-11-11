@@ -46,19 +46,33 @@ enum CourseLevel {
   BEGINNER
   INTERMEDIATE
   ADVANCED
+  EXPERT
 }
 
 enum CourseType {
-  ONLINE
-  OFFLINE
+  LIVE
+  PRE_RECORDED
   HYBRID
+  SELF_STUDY
+}
+
+enum CourseCategory {
+  BUSINESS
+  MARKETING
+  ENTREPRENEURSHIP
+  ICT
 }
 
 enum TeachingApproach {
   INTERACTIVE
   VIDEO
   LIVE
-  ASSIGNMENT
+  PROJECT_BASED
+}
+
+enum TeachingLanguage {
+  ENGLISH
+  BANGLA
 }
 
 enum LessonType {
@@ -145,6 +159,14 @@ enum ApplicationStatus {
   PENDING
   APPROVED  
   REJECTED
+}
+
+enum SocialPlatform {
+  FACEBOOK
+  TWITTER
+  INSTAGRAM
+  LINKEdIN
+  YOUTUBE
 }
 
 // === MODELS===//
@@ -381,18 +403,18 @@ model InstructorProfile {
   currentOrg     String?
 
   //== Course Info
-  proposedCourseCategory String
+  proposedCourseCategory CourseCategory
   courseLevel    CourseLevel
   courseType     CourseType
 
   //== Content & Teaching Skills
   teachingExperience   Decimal?   @default(0) @db.Decimal(5, 2)
   prevTeachingApproach TeachingApproach
-  language             String
+  language             TeachingLanguage
   demoVideo            String?
 
   //== Others Info
-  bio           String?
+  bio           String
   skills        InstructorSkill[]
   website       String?
   socialAccount SocialLink[]
@@ -435,7 +457,7 @@ model SocialLink {
   id        String            @id @default(uuid())
   userId    String
   user      InstructorProfile @relation(fields: [userId], references: [id], onDelete: Cascade)
-  platform  String
+  platform  SocialPlatform
   url       String
   createdAt DateTime          @default(now())
 }
