@@ -76,6 +76,28 @@ const registerStudent = catchAsync(async (req, res): Promise<void> => {
   });
 });
 
+const registerInstructor = catchAsync(async (req, res): Promise<void> => {
+  const result = await authService.registerInstructor(req);
+
+  if (!result) {
+    throw new Error('InstructorRegistration failed');
+  }
+
+  const { emailVerificationToken, passwordResetToken : _passwordResetToken, ...restData } = result;
+
+  if (emailVerificationToken) {
+    await MailService.sendEmail(result.email, 'Welcome to Aloskill!', signupWelcomeTemplate, {
+      name: result.displayName ?? 'AloSkill User',
+      verificationLink: `http://localhost:3000/auth/verify-user?id=${result.id}&token=${emailVerificationToken}`,
+    });
+  };
+
+  ResponseHandler.ok(res, 'Register Successful', {
+    ...restData,
+    redirectToVerificationPage: emailVerificationToken ? true : false,
+  });
+});
+
 const verifyUser = catchAsync(async (req, res): Promise<void> => {
   const result = await authService.verifyUser(req);
 
@@ -201,6 +223,7 @@ const refreshAccessToken = catchAsync(async (req, res): Promise<void> => {
 export const authController = {
   loginUser,
   registerStudent,
+  registerInstructor,
   verifyUser,
   resendVerificationEmail,
   forgotPassword,
