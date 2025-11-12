@@ -165,7 +165,7 @@ enum SocialPlatform {
   FACEBOOK
   TWITTER
   INSTAGRAM
-  LINKEdIN
+  LINKEDIN
   YOUTUBE
 }
 
