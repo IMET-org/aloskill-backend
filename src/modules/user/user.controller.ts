@@ -9,6 +9,24 @@ const getUserByEmail = catchAsync(async (req, res): Promise<void> => {
   });
 });
 
+const getAllInstructors = catchAsync(async (_req, res): Promise<void> => {
+  const result = await userService.getAllInstructors();
+
+  ResponseHandler.ok(res, 'All Instructors', {
+    result,
+  });
+});
+
+const getSingleInstructor = catchAsync(async (req, res): Promise<void> => {
+  const result = await userService.getSingleInstructor(req);
+
+  ResponseHandler.ok(res, 'All Instructors', {
+    result,
+  });
+});
+
 export const userController = {
   getUserByEmail,
+  getAllInstructors,
+  getSingleInstructor,
 };

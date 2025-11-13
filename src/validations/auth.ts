@@ -40,7 +40,8 @@ export const InstructorProfileSchema = z.object({
       .nullable(),
     displayName: z
       .string()
-      .min(3, 'Display name must be at least 3 characters long.')
+      .min(6, 'Display name must be at least 6 characters long.')
+      .max(40, 'Display name must be less than 60 characters.')
       .regex(/^[a-zA-Z\s]+$/, 'Only letters and spaces allowed for display name.'),
     DOB: z.coerce
       .date({
@@ -55,26 +56,30 @@ export const InstructorProfileSchema = z.object({
     gender: z.enum(['MALE', 'FEMALE']),
     nationality: z
       .string()
-      .min(2, 'Nationality is required.')
+      .min(3, 'Nationality must be more than 3 characters.')
+      .max(20, 'Nationality must be less than 20 characters.')
       .regex(/^[a-zA-Z\s]+$/, 'Only letters and spaces allowed for nationality.'),
     // == Contact Info
     phoneNumber: z
       .string()
-      .min(11, 'Phone data is required.')
+      .min(11, 'Phone data must be more than 11 characters.')
       .max(14, 'Phone Number must be less than 14 characters.')
-      .regex(/^[0-9]+$/, 'Only Numbers are allowed in PhoneNumber'),
+      .regex(/^[0-9+]+$/, 'Only Numbers and plus signs are allowed in PhoneNumber'),
     address: z
       .string()
-      .min(5, 'Address is required.')
+      .min(10, 'Address must be more than 10 characters.')
       .max(255, `Address cannot exceed 255 characters.`),
-    city: z.string().min(2, 'City is required.').max(20, `City cannot exceed 20 characters.`),
+    city: z
+      .string()
+      .min(3, 'City must be more than 3 characters.')
+      .max(20, `City cannot exceed 20 characters.`),
     // == Professional Info
     qualifications: z
       .string()
-      .min(5, 'Qualifications details are required.')
+      .min(6, 'Qualifications must be more than 6 characters.')
       .max(100, `Qualifications cannot exceed 100 characters.`),
     experience: z
-      .number({ error: 'Please enter your teaching experience between 0 to 50' })
+      .number({ error: 'Please enter your experience between 0 to 50' })
       .min(0)
       .max(50)
       .default(0),
@@ -97,7 +102,12 @@ export const InstructorProfileSchema = z.object({
     courseLevel: z.enum(['BEGINNER', 'INTERMEDIATE', 'ADVANCED', 'EXPERT']),
     courseType: z.enum(['LIVE', 'PRE_RECORDED', 'HYBRID', 'SELF_STUDY']),
     // == Content & Teaching Skills
-    teachingExperience: z.number().min(0).max(50).optional().default(0),
+    teachingExperience: z
+      .number({ error: 'Please enter your teaching experience between 0 to 50' })
+      .min(0)
+      .max(50)
+      .optional()
+      .default(0),
     prevTeachingApproach: z.enum(['INTERACTIVE', 'VIDEO', 'LIVE', 'PROJECT_BASED']),
     language: z.enum(['ENGLISH', 'BANGLA']),
     demoVideo: z

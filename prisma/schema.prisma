@@ -442,6 +442,7 @@ model InstructorProfile {
   @@index([status])
   @@index([ratingAverage])
   @@index([deletedAt])
+  @@index([userId, status, deletedAt])
 }
 
 model InstructorSkill {
