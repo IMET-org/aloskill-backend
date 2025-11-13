@@ -62,7 +62,7 @@ export const InstructorProfileSchema = z.object({
       .string()
       .min(11, 'Phone data is required.')
       .max(14, 'Phone Number must be less than 14 characters.')
-      .regex(/^[0-9]+$/, 'Only Numbers are allowed in PhoneNumber'),
+      .regex(/^[0-9+]+$/, 'Only Numbers are allowed in PhoneNumber'),
     address: z
       .string()
       .min(5, 'Address is required.')
