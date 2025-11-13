@@ -2,10 +2,12 @@ import { executeDbOperation } from '@/config/database.js';
 import cron from 'node-cron';
 
 // Every minute
-cron.schedule('* * * * *', () => { ''; });
+cron.schedule('* * * * *', () => {
+  '';
+});
 
 // Every hour
-cron.schedule('0 * * * *', async() => {
+cron.schedule('0 * * * *', async () => {
   try {
     const deletedToken = await executeDbOperation(async prisma => {
       return await prisma.refreshToken.deleteMany({
@@ -23,10 +25,16 @@ cron.schedule('0 * * * *', async() => {
 });
 
 // Every 6 hours
-cron.schedule('0 */6 * * *', () => { ''; });
+cron.schedule('0 */6 * * *', () => {
+  '';
+});
 
 // Daily at 3 AM
-cron.schedule('0 3 * * *', () => {'';});
+cron.schedule('0 3 * * *', () => {
+  '';
+});
 
 // Every Sunday at 2 AM
-cron.schedule('0 2 * * 0', () => { ''; });
+cron.schedule('0 2 * * 0', () => {
+  '';
+});

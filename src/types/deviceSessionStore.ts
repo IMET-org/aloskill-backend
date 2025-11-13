@@ -1,5 +1,5 @@
 // User Sessions/Devices Table
- export interface UserSession {
+export interface UserSession {
   id: string;
   userId: string;
   sessionToken: string;

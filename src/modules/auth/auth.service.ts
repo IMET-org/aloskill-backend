@@ -511,9 +511,9 @@ const registerStudent = async (req: Request) => {
   }
 
   if (existingUser) {
-    if(existingUser.status !== UserStatus.INACTIVE) {
+    if (existingUser.status !== UserStatus.INACTIVE) {
       throw new Error('Your account is Inactive or Suspended');
-    };
+    }
 
     if (password) {
       if (existingUser.password && existingUser.emailVerificationTokenHash) {
@@ -572,7 +572,7 @@ const registerInstructor = async (req: Request) => {
   const data = req.body;
   if (data.DOB) {
     data.DOB = new Date(data.DOB as string);
-  };
+  }
 
   if (!data.email) {
     throw new Error('User Email not found');
@@ -644,7 +644,14 @@ const registerInstructor = async (req: Request) => {
   }
 
   // === If user exist but does not have an instructor profile ===
-  const { email: _email, password: _password, phoneNumber, skills, socialAccount, ...restData } = data;
+  const {
+    email: _email,
+    password: _password,
+    phoneNumber,
+    skills,
+    socialAccount,
+    ...restData
+  } = data;
   const encryptedPhoneNumber = encryptPhoneNumber(phoneNumber as string);
   restData.encryptedPhone = encryptedPhoneNumber;
   restData.phoneLastFour = phoneNumber.slice(-4);
@@ -660,7 +667,7 @@ const registerInstructor = async (req: Request) => {
             ...restData,
             skills: {
               createMany: {
-                data: skills.map((skillName:string) => ({
+                data: skills.map((skillName: string) => ({
                   skill: skillName,
                 })),
                 skipDuplicates: true,
@@ -668,10 +675,10 @@ const registerInstructor = async (req: Request) => {
             },
             socialAccount: {
               createMany: {
-                data: socialAccount.map((social:any) => ({...social})),
+                data: socialAccount.map((social: any) => ({ ...social })),
                 skipDuplicates: true,
-              }
-            }
+              },
+            },
           },
         },
       },
