@@ -41,6 +41,7 @@ export const InstructorProfileSchema = z.object({
     displayName: z
       .string()
       .min(3, 'Display name must be at least 3 characters long.')
+      .max(40, 'Display name must be less then 40 characters long.')
       .regex(/^[a-zA-Z\s]+$/, 'Only letters and spaces allowed for display name.'),
     DOB: z.coerce
       .date({
@@ -55,31 +56,49 @@ export const InstructorProfileSchema = z.object({
     gender: z.enum(['MALE', 'FEMALE']),
     nationality: z
       .string()
-      .min(2, 'Nationality is required.')
+      .min(2, 'Nationality is more than 2 characters long.')
+      .max(20, 'Nationality is less then 20 characters long.')
       .regex(/^[a-zA-Z\s]+$/, 'Only letters and spaces allowed for nationality.'),
     // == Contact Info
     phoneNumber: z
       .string()
       .min(11, 'Phone data is required.')
       .max(14, 'Phone Number must be less than 14 characters.')
-      .regex(/^[0-9+]+$/, 'Only Numbers are allowed in PhoneNumber'),
+      .regex(/^\+?[1-9][0-9]{10,14}$/, ' Numbers with country code are allowed in PhoneNumber'),
     address: z
       .string()
-      .min(5, 'Address is required.')
+      .regex(
+        /^[A-Za-z0-9#\-,\s\.\/]+$/,
+        'Address can only contain letters, numbers, spaces, commas, periods, and hyphens.'
+      )
+      .min(10, 'Address is required.')
       .max(255, `Address cannot exceed 255 characters.`),
-    city: z.string().min(2, 'City is required.').max(20, `City cannot exceed 20 characters.`),
+    city: z
+      .string()
+      .regex(/^[a-zA-Z\s]+$/, 'City can only contain letters and spaces.')
+      .min(2, 'City is required.')
+      .max(20, `City cannot exceed 20 characters.`),
     // == Professional Info
     qualifications: z
       .string()
+      .regex(
+        /^[A-Za-z\-,\s\.\/]+$/,
+        'Qualifications can only contain letters,space, dot , slash,hyphen characters.'
+      )
       .min(5, 'Qualifications details are required.')
       .max(100, `Qualifications cannot exceed 100 characters.`),
     experience: z
-      .number({ error: 'Please enter your teaching experience between 0 to 50' })
+      .number({ error: 'Please enter your  experience between 0 to 50' })
+      .int({ error: 'Please enter your  experience as integer value' })
       .min(0)
       .max(50)
       .default(0),
     expertise: z
       .string({ error: 'Expertise should not be empty and should be atleast 3 charactors' })
+      .regex(
+        /^[A-Za-z\-,\s\.\/]+$/,
+        'expertise can only contain letters,space, dot , slash,hyphen characters.'
+      )
       .min(3)
       .max(100)
       .optional()
@@ -88,6 +107,10 @@ export const InstructorProfileSchema = z.object({
       .string({
         error: 'Current organization should not be empty and should be atleast 3 charactors',
       })
+      .regex(
+        /^[A-Za-z\-,\s\.\/]+$/,
+        'Current Organization can only contain letters,space, dot , slash,hyphen characters.'
+      )
       .min(3)
       .max(30)
       .optional()
@@ -97,7 +120,13 @@ export const InstructorProfileSchema = z.object({
     courseLevel: z.enum(['BEGINNER', 'INTERMEDIATE', 'ADVANCED', 'EXPERT']),
     courseType: z.enum(['LIVE', 'PRE_RECORDED', 'HYBRID', 'SELF_STUDY']),
     // == Content & Teaching Skills
-    teachingExperience: z.number().min(0).max(50).optional().default(0),
+    teachingExperience: z
+      .number({ error: 'Please enter your teaching experience between 0 to 50' })
+      .int({ error: 'Please enter your teaching experience as integer value' })
+      .min(0)
+      .max(50)
+      .optional()
+      .default(0),
     prevTeachingApproach: z.enum(['INTERACTIVE', 'VIDEO', 'LIVE', 'PROJECT_BASED']),
     language: z.enum(['ENGLISH', 'BANGLA']),
     demoVideo: z
@@ -111,11 +140,16 @@ export const InstructorProfileSchema = z.object({
     // == Others Info
     bio: z
       .string({ error: 'Bio must be more than 10 characters and less than 400 characters' })
+      .regex(
+        /^[\p{L}0-9\s\.,'"\-\/\(\)]{10,400}$/u,
+        'Bio must contain only letters, digits, spaces, punctuation marks, and special characters'
+      )
       .min(10)
       .max(400),
     skills: z.array(
       z
         .string({ error: 'Skills must be an array of strings' })
+        .regex(/^[a-zA-Z\s]+$/, 'Skill must contain only letters and spaces')
         .min(3, 'Each skill must have at least 3 characters')
     ),
     website: z
