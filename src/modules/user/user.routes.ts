@@ -2,6 +2,7 @@ import { validate } from '@/middleware/validation.js';
 import express from 'express';
 import { userController } from './user.controller.js';
 import { getSingleInstructorSchema, getSingleUserSchema } from './user.validation.js';
+import { generalLimiter } from '@/middleware/security.js';
 
 const router = express.Router({ caseSensitive: true });
 
