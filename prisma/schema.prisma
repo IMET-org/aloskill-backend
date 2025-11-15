@@ -56,6 +56,11 @@ enum CourseType {
   SELF_STUDY
 }
 
+enum Language {
+  ENGLISH
+  BANGLA
+}
+
 enum CourseCategory {
   BUSINESS
   MARKETING
@@ -442,6 +447,7 @@ model InstructorProfile {
   @@index([status])
   @@index([ratingAverage])
   @@index([deletedAt])
+  @@index([userId, status, deletedAt])
 }
 
 model InstructorSkill {
@@ -467,8 +473,8 @@ model Course {
   id            String             @id @default(uuid())
   title         String
   slug          String             @unique
-  shortDesc     String?
-  description   String?
+  shortDesc     String
+  description   String
 
   // == Pricing == //
   originalPrice    Decimal   @db.Decimal(6, 2)
@@ -484,12 +490,12 @@ model Course {
   moduleCount        Int        @default(0)
 
   status        CourseStatus       @default(DRAFT)
-  language      String?
+  language      Language  @default(BANGLA)
   thumbnailUrl  String?
 
   categoryId    String?
   category      Category?          @relation(fields: [categoryId], references: [id], onDelete: SetNull)
-  createdById   String? // (nullable if system-created)
+  createdById   String?
   createdBy     InstructorProfile? @relation("CourseOwner", fields: [createdById], references: [id], onDelete: SetNull)
 
   ratingAverage Decimal?           @default(0) @db.Decimal(2, 1)

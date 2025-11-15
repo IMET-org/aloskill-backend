@@ -1,9 +1,9 @@
 /* eslint-disable @typescript-eslint/no-unnecessary-condition */
-import { DeviceService } from "@/modules/device/deviceService.js";
-import type { DeviceInfo } from "@/types/deviceSessionStore.js";
-import { DeviceFingerprint } from "@/utils/deviceFingerprint.js";
-import type { User } from "@prisma/client";
-import type { RequestHandler } from "express";
+import { DeviceService } from '@/modules/device/deviceService.js';
+import type { DeviceInfo } from '@/types/deviceSessionStore.js';
+import { DeviceFingerprint } from '@/utils/deviceFingerprint.js';
+import type { User } from '@prisma/client';
+import type { RequestHandler } from 'express';
 
 declare module 'express-serve-static-core' {
   export interface Request {

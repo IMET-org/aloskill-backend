@@ -83,14 +83,14 @@ const registerInstructor = catchAsync(async (req, res): Promise<void> => {
     throw new Error('InstructorRegistration failed');
   }
 
-  const { emailVerificationToken, passwordResetToken : _passwordResetToken, ...restData } = result;
+  const { emailVerificationToken, passwordResetToken: _passwordResetToken, ...restData } = result;
 
   if (emailVerificationToken) {
     await MailService.sendEmail(result.email, 'Welcome to Aloskill!', signupWelcomeTemplate, {
       name: result.displayName ?? 'AloSkill User',
       verificationLink: `http://localhost:3000/auth/verify-user?id=${result.id}&token=${emailVerificationToken}`,
     });
-  };
+  }
 
   ResponseHandler.ok(res, 'Register Successful', {
     ...restData,
