@@ -1,34 +1,26 @@
-/* eslint-disable @typescript-eslint/no-unnecessary-type-assertion */
 /* eslint-disable @typescript-eslint/prefer-optional-chain */
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
-import type { JwtPayload } from '@/types/jwt.types.js';
-import { HttpStatus } from '@/types/shared.js';
 import JwtService from '@/utils/jwt.js';
 import type { NextFunction, Request, RequestHandler, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import { config } from '../config/env.js';
-import CookieService from '../utils/cookies.js';
-import { InsufficientPermissionsError, JwtError } from './errorHandler.js';
+import { InsufficientPermissionsError } from './errorHandler.js';
+import ResponseHandler from '@/utils/response.js';
 
-// Extended Request interface with user property
-export interface AuthenticatedRequest extends Request {
-  user?: JwtPayload;
-}
+type RoleCheck = (userRole: string[], requiredRoles: string[]) => boolean;
 
-// Role checking function type
-type RoleCheck = (userRole: string, requiredRoles: string[]) => boolean;
-
-// Role checking strategies
+// Role checking
 export const roleStrategies: Record<string, RoleCheck> = {
-  // User must have ALL required roles
-  all: (userRole, requiredRoles) => requiredRoles.every(role => userRole === role),
+  any: (userRole, requiredRoles) => userRole.some(role => requiredRoles.includes(role)),
+  all: (userRole, requiredRoles) => requiredRoles.every(role => userRole.includes(role)),
+  exact: (userRole, requiredRoles) => {
+    if (userRole.length !== requiredRoles.length) {
+      return false;
+    }
 
-  // User must have ANY of the required roles
-  any: (userRole, requiredRoles) => requiredRoles.includes(userRole),
-
-  // User must have EXACTLY the required role (single role)
-  exact: (userRole, requiredRoles) => userRole === requiredRoles[0],
+    return requiredRoles.every(role => userRole.includes(role));
+  },
 };
 
 // Middleware options
@@ -44,21 +36,27 @@ interface AuthOptions {
 export const authenticate = (options: AuthOptions = {}): RequestHandler => {
   const { roles = [], strategy = 'any', allowPublic = false } = options;
 
-  return (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  return (req: Request, res: Response, next: NextFunction) => {
     try {
-      // Get token from cookies or headers
-      const token = CookieService.getAccessToken(req);
+        const authHeader = req.headers.authorization;
+        console.log('Authorization header:', authHeader);
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+          return ResponseHandler.unauthorized(res, 'Unauthorized: Missing or malformed token');
+        }
+
+        const token = authHeader.split(' ')[1];
+        console.log('Extracted token:', token);
 
       if (!token) {
         if (allowPublic) {
           return next();
         }
-        throw new JwtError('Authentication required', 'AUTH_REQUIRED', HttpStatus.UNAUTHORIZED);
+        return ResponseHandler.unauthorized(res, 'Unauthorized: Missing or malformed token');
       }
 
       // Verify token
       const decoded = JwtService.verifyToken(token, 'ACCESS');
-      req.user = decoded;
+      (req as any).user = decoded;
 
       // Role-based authorization
       if (roles.length > 0) {
@@ -66,7 +64,7 @@ export const authenticate = (options: AuthOptions = {}): RequestHandler => {
 
         if (!hasPermission) {
           throw new InsufficientPermissionsError(
-            `Required roles: ${roles.join(', ')}. Your role: ${decoded.role}`
+            `Required roles: ${roles.join(', ')}. Your role: ${decoded.role.join(',')}`
           );
         }
       }
@@ -85,11 +83,11 @@ export const verifyAccessToken = (req: Request, res: Response, next: NextFunctio
     return res.status(401).json({ message: 'Unauthorized: Missing or malformed token' });
   }
 
-  const token = authHeader.split(' ')[1]; // Extract token from 'Bearer <token>'
+  const token = authHeader.split(' ')[1];
   console.log('Extracted token:', token);
   try {
     // Verify token using JWT_SECRET
-    const decoded = jwt.verify(token, config.JWT_SECRET!) as {
+    const decoded = jwt.verify(token, config.JWT_SECRET) as {
       id: string;
       email: string;
       role: string;
