@@ -1,4 +1,3 @@
-import { CourseStatus } from '@prisma/client';
 import { z } from 'zod';
 
 const courseLessonSchema = z.object({
@@ -57,12 +56,11 @@ export const CreateCourseSchema = z.object({
   body: z
     .object({
       createdById: z.uuid({ message: 'Invalid User Id' }),
-      categoryId: z.uuid({ message: 'Invalid Category Id' }),
       title: z
         .string()
         .trim()
         .min(5, 'Title must be at least 5 characters long')
-        .max(150, 'Title cannot exceed 150 characters')
+        .max(100, 'Title cannot exceed 100 characters')
         .regex(
           /^[\w\s\p{P}&\-]+$/u,
           'Title contains invalid characters. Only letters, numbers, spaces, and common punctuation are allowed.'
@@ -70,17 +68,12 @@ export const CreateCourseSchema = z.object({
       slug: z
         .string()
         .min(3, 'Slug must be at least 3 characters long')
-        .max(100, 'Slug cannot exceed 100 characters')
+        .max(50, 'Slug cannot exceed 50 characters')
         .regex(
           /^[a-z0-9]+(?:-[a-z0-9]+)*$/,
           'Slug must be lowercase, use hyphens instead of spaces, and contain no special characters.'
         ),
-      shortDesc: z
-        .string()
-        .trim()
-        .min(10, 'Short description must be at least 10 characters long')
-        .max(500, 'Short description cannot exceed 500 characters')
-        .regex(/^[^<>]*$/, 'shortDesc must not contain any opening or closing HTML tags'),
+      categoryId: z.uuid({ message: 'Invalid Category Id' }),
       description: z
         .string()
         .trim()
@@ -104,10 +97,8 @@ export const CreateCourseSchema = z.object({
         .min(new Date(), { message: 'Discount end date must be in the future or present.' })
         .optional()
         .nullable(),
-      isDiscountActive: z.boolean().default(false),
-      currency: z.enum(['BDT', 'USD']).default('BDT'),
-      status: z.enum(CourseStatus).default(CourseStatus.DRAFT),
-      language: z.enum(['ENGLISH', 'BANGLA']).default('ENGLISH').optional(),
+      language: z.enum(['ENGLISH', 'BANGLA']).default('ENGLISH'),
+      level: z.enum(['BEGINNER', 'INTERMEDIATE', 'ADVANCED']).default('BEGINNER'),
       thumbnailUrl: z
         .url('Must be a valid URL format (e.g., starting with http:// or https://)')
         .max(500)

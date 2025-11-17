@@ -8,6 +8,24 @@ const createCourse = catchAsync(async (req, res): Promise<void> => {
   ResponseHandler.ok(res, 'Course Created Successfully!', result);
 });
 
+const getCategories = catchAsync(async (req, res): Promise<void> => {
+  const result = await courseService.getCategories();
+  ResponseHandler.ok(res, 'Categories fetched successfully!', result);
+});
+
+const checkCourseSlugAvailability = catchAsync(async (req, res): Promise<void> => {
+  const { slug } = req.params;
+  const isAvailable = await courseService.isCourseSlugAvailable(slug);
+
+  if (isAvailable) {
+    ResponseHandler.ok(res, 'Course slug is available');
+  } else {
+    ResponseHandler.badRequest(res, 'Course slug is already taken');
+  }
+});
+
 export const courseController = {
   createCourse,
+  getCategories,
+  checkCourseSlugAvailability,
 };

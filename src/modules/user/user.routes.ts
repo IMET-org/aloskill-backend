@@ -1,4 +1,4 @@
-import { authLimiter } from '@/middleware/security.js';
+import { generalLimiter } from '@/middleware/security.js';
 import { validate } from '@/middleware/validation.js';
 import express from 'express';
 import { userController } from './user.controller.js';
@@ -6,7 +6,7 @@ import { getSingleInstructorSchema, getSingleUserSchema } from './user.validatio
 
 const router = express.Router({ caseSensitive: true });
 
-router.use(authLimiter);
+router.use(generalLimiter);
 
 router.get('/:email', validate(getSingleUserSchema), userController.getUserByEmail);
 router.get('/instructor/:id', validate(getSingleInstructorSchema), userController.getSingleInstructor);
