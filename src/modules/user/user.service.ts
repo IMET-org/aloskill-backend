@@ -251,7 +251,7 @@ const getAllInstructors = async () => {
       avaterUrl: instructor.user.avatarUrl,
       role: instructor.user.assignedRole.map(role => role.role),
       skills: instructor.skills.map(s => s.skill),
-      name: instructor.displayName,
+      displayName: instructor.displayName,
       ratingAverage: instructor.ratingAverage ?? 0,
       totalCourses: instructor.totalCourses,
     })),

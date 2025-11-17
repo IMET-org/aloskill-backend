@@ -511,7 +511,7 @@ const registerStudent = async (req: Request) => {
   }
 
   if (existingUser) {
-    if (existingUser.status !== UserStatus.INACTIVE) {
+    if (existingUser.status !== UserStatus.ACTIVE) {
       throw new Error('Your account is Inactive or Suspended');
     }
 
