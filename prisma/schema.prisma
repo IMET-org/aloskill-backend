@@ -335,7 +335,7 @@ model UserRoleAssignment {
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId      String
   role        UserRole
-  // metadata 
+  // metadata
   grantedById String?
   grantedAt   DateTime @default(now())
 
@@ -542,8 +542,8 @@ model Module {
   id        String    @id @default(uuid())
   course    Course    @relation(fields: [courseId], references: [id], onDelete: Cascade)
   courseId  String
-  title     String
   position  Int
+  title     String
   deletedAt DateTime?
   lessons   Lesson[]
   createdAt DateTime  @default(now())
@@ -557,12 +557,14 @@ model Lesson {
   id         String     @id @default(uuid())
   module     Module     @relation(fields: [moduleId], references: [id], onDelete: Cascade)
   moduleId   String
+  position   Int
   title      String
-  content    String?
+  description String
+  notes      String?
   type       LessonType
   contentUrl String?
+  files      String[]
   duration   Int?
-  position   Int
   deletedAt  DateTime?
   createdAt  DateTime   @default(now())
   updatedAt  DateTime   @updatedAt
