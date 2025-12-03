@@ -511,11 +511,10 @@ const registerStudent = async (req: Request) => {
   }
 
   if (existingUser) {
-    if (existingUser.status !== UserStatus.ACTIVE) {
-      throw new Error('Your account is Inactive or Suspended');
-    }
-
     if (password) {
+      if (existingUser.status !== UserStatus.ACTIVE) {
+        throw new Error('Your account is Inactive or Suspended');
+      }
       if (existingUser.password && existingUser.emailVerificationTokenHash) {
         throw new Error('Email already sent, verify it and try to login');
       }
