@@ -5,6 +5,41 @@ import { ApplicationStatus, UserStatus } from '@prisma/client';
 import { type Request } from 'express';
 import type { CreateCoursePayload } from './course.validation.js';
 
+const getCategories = async () => {
+  const categories = await executeDbOperation(async prisma => {
+    return await prisma.category.findMany({
+      select: {
+        id: true,
+        name: true,
+        parentId: true,
+        children: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+    });
+  });
+
+  return categories;
+};
+
+const isCourseSlugAvailable = async (slug: string) => {
+  const course = await executeDbOperation(async prisma => {
+    return await prisma.course.findUnique({
+      where: {
+        slug,
+      },
+      select: {
+        id: true,
+      },
+    });
+  });
+
+  return course ? false : true;
+};
+
 const createCourse = async (req: Request) => {
   const { body: data } = req.body as CreateCoursePayload;
   const instructor = req.user;
@@ -93,5 +128,7 @@ const createCourse = async (req: Request) => {
 };
 
 export const courseService = {
+  isCourseSlugAvailable,
   createCourse,
+  getCategories,
 };
