@@ -9,7 +9,11 @@ const router = express.Router({ caseSensitive: true });
 router.use(generalLimiter);
 
 router.get('/:email', validate(getSingleUserSchema), userController.getUserByEmail);
-router.get('/instructor/:id', validate(getSingleInstructorSchema), userController.getSingleInstructor);
+router.get(
+  '/instructor/:id',
+  validate(getSingleInstructorSchema),
+  userController.getSingleInstructor
+);
 router.get('/instructors/all', userController.getAllInstructors);
 
 export const UserRoutes = router;

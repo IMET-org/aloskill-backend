@@ -8,7 +8,7 @@ const router = express.Router({ caseSensitive: true });
 const moduleRoutes = [
   { path: '/auth', route: AuthRoutes },
   { path: '/user', route: UserRoutes },
-  { path: '/course', route: CourseRoutes}
+  { path: '/course', route: CourseRoutes },
 ];
 
 moduleRoutes.forEach(route => router.use(route.path, route.route));

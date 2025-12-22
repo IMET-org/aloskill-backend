@@ -153,10 +153,9 @@ enum InstructorRole {
 }
 
 enum QuestionType {
+  SINGLE_CHOICE
   MULTIPLE_CHOICE
   TRUE_FALSE
-  SHORT_ANSWER
-  MULTI_SELECT
 }
 
 enum ApplicationStatus {
@@ -447,6 +446,7 @@ model InstructorProfile {
   @@index([ratingAverage])
   @@index([deletedAt])
   @@index([userId, status, deletedAt])
+  @@index([displayName, status, deletedAt])
 }
 
 model InstructorSkill {
@@ -473,6 +473,8 @@ model Course {
   title       String
   slug        String @unique
   description String
+  welcomeMessage         String?
+  congratulationsMessage String?
 
   // == Pricing == //
   originalPrice    Decimal   @db.Decimal(6, 2)
@@ -559,7 +561,7 @@ model Lesson {
   moduleId   String
   position   Int
   title      String
-  description String
+  description String?
   notes      String?
   type       LessonType
   contentUrl String?
@@ -571,7 +573,7 @@ model Lesson {
 
   progressRecords LessonProgress[]
   discussions     LessonDiscussion[]
-  quizzes         Quiz[]
+  quiz            Quiz?
 
   @@index([moduleId])
   @@index([moduleId, position])
@@ -906,13 +908,13 @@ model Notification {
 model Quiz {
   id          String  @id @default(uuid())
   lesson      Lesson? @relation(fields: [lessonId], references: [id], onDelete: Cascade)
-  lessonId    String?
+  lessonId    String  @unique
   title       String
   description String?
 
   // Quiz Rules
   duration        Int?
-  passingScore    Decimal @db.Decimal(3, 2)
+  passingScore    Int     @default(0) @db.SmallInt()
   attemptsAllowed Int     @default(1) @db.SmallInt()
 
   createdAt DateTime @default(now())
@@ -950,6 +952,7 @@ model QuestionOption {
   question   QuizQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
   questionId String
 
+  position         Int
   text             String
   isCorrect        Boolean  @default(false)
   // Used only if QuestionType is SHORT_ANSWER (e.g., 'Paris' vs 'paris')
