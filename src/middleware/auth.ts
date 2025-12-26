@@ -38,14 +38,14 @@ export const authenticate = (options: AuthOptions = {}): RequestHandler => {
 
   return (req: Request, res: Response, next: NextFunction) => {
     try {
-        const authHeader = req.headers.authorization;
-        console.log('Authorization header:', authHeader);
-        if (!authHeader || !authHeader.startsWith('Bearer ')) {
-          return ResponseHandler.unauthorized(res, 'Unauthorized: Missing or malformed token');
-        }
+      const authHeader = req.headers.authorization;
+      console.log('Authorization header:', authHeader);
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return ResponseHandler.unauthorized(res, 'Unauthorized: Missing or malformed token');
+      }
 
-        const token = authHeader.split(' ')[1];
-        console.log('Extracted token:', token);
+      const token = authHeader.split(' ')[1];
+      console.log('Extracted token:', token);
 
       if (!token) {
         if (allowPublic) {
@@ -116,7 +116,7 @@ export const requireSuperAdmin = authenticate({
 });
 
 export const requireInstructor = authenticate({
-  roles: ['instructor', 'admin', 'superadmin'],
+  roles: ['INSTRUCTOR', 'ADMIN'],
   strategy: 'any',
 });
 

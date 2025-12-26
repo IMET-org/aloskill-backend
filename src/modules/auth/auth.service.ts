@@ -712,6 +712,9 @@ const verifyUser = async (req: Request) => {
   if (!user) {
     throw new Error('User Does Not Exist');
   } else {
+    if (user.status !== UserStatus.ACTIVE) {
+      throw new Error('Your account has been deactivated or Suspended');
+    }
     if (user.emailVerificationTokenHash !== token) {
       throw new Error('Invalid Verification Link');
     } else {
@@ -755,6 +758,10 @@ const resendVerificationEmail = async (req: Request) => {
     throw new Error('User not found');
   }
 
+  if (user.status === UserStatus.INACTIVE) {
+    throw new Error('Your account has been deactivated or Suspended');
+  }
+
   if (user.isEmailVerified) {
     throw new Error('Email is already verified');
   }
@@ -794,6 +801,9 @@ const forgotPassword = async (req: Request) => {
   if (!user) {
     throw new Error('User Does Not Exist');
   } else {
+    if (user.status !== UserStatus.ACTIVE) {
+      throw new Error('Your account has been deactivated or Suspended');
+    }
     if (!user.password) {
       throw new Error('User not registered');
     } else if (!user.isEmailVerified) {
@@ -836,6 +846,9 @@ const resetPassword = async (req: Request) => {
   if (!user) {
     throw new Error('User Not Found');
   }
+  if (user.status !== UserStatus.ACTIVE) {
+    throw new Error('Your account has been deactivated or Suspended');
+  }
   if (user.passwordResetTokenHash !== token) {
     throw new Error('Invalid Reset Token');
   } else {
@@ -875,6 +888,9 @@ const changePassword = async (req: Request) => {
 
   if (!user) {
     throw new Error('User Not Found');
+  }
+  if (user.status !== UserStatus.ACTIVE) {
+    throw new Error('Your account has been deactivated or Suspended');
   }
   if (user.passwordResetTokenHash !== token) {
     throw new Error('Invalid Reset Token');
