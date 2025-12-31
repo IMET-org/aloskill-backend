@@ -234,10 +234,10 @@ const createCourse = async (req: Request) => {
                   position: lesson.position,
                   type: lesson.type,
                   description: lesson.description,
-                  contentUrl: lesson.contentUrl,
+                  contentUrl: lesson.contentUrl?.url,
                   notes: lesson.notes,
                   duration: 0,
-                  files: lesson.files ?? [],
+                  files: lesson.files?.map(file=> file.url) ?? [],
                 };
 
                 if (lesson.quiz) {
