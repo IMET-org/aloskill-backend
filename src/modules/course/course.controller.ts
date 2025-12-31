@@ -75,6 +75,11 @@ const getBunnySignature = catchAsync(async (req, res): Promise<void> => {
   ResponseHandler.ok(res, 'Bunny signature generated', result);
 });
 
+const createFileToBunny = catchAsync(async (req, res): Promise<void> => {
+  const result = await courseService.createFileToBunny(req);
+  ResponseHandler.ok(res, 'File created in bunny storage', result);
+});
+
 export const courseController = {
   getBunnySignature,
   createCourse,
@@ -82,4 +87,5 @@ export const courseController = {
   checkCourseSlugAvailability,
   getCourseInstructors,
   getCourseTags,
+  createFileToBunny
 };
