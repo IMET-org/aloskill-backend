@@ -4,6 +4,15 @@ import express from 'express';
 import { courseController } from './course.controller.js';
 import { CreateCourseSchema } from './course.validation.js';
 import { requireInstructor } from '../../middleware/auth.js';
+import multer from 'multer';
+
+const upload = multer({
+    storage: multer.memoryStorage(),
+    limits: {
+      fileSize: 50 * 1024 * 1024,
+      files: 1
+    }
+});
 
 const router = express.Router({ caseSensitive: true });
 
@@ -25,5 +34,8 @@ router.get(
 );
 router.get('/tags', instructorQueryLimiter, requireInstructor, courseController.getCourseTags);
 router.post('/bunny-signature', requireInstructor, courseController.getBunnySignature);
+router.post("/file-upload", requireInstructor, (req, res, next) => {
+  upload.single('file')(req, res, next);
+},courseController.createFileToBunny);
 
 export const CourseRoutes = router;

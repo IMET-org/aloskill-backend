@@ -39,13 +39,11 @@ export const authenticate = (options: AuthOptions = {}): RequestHandler => {
   return (req: Request, res: Response, next: NextFunction) => {
     try {
       const authHeader = req.headers.authorization;
-      console.log('Authorization header:', authHeader);
       if (!authHeader || !authHeader.startsWith('Bearer ')) {
         return ResponseHandler.unauthorized(res, 'Unauthorized: Missing or malformed token');
       }
 
       const token = authHeader.split(' ')[1];
-      console.log('Extracted token:', token);
 
       if (!token) {
         if (allowPublic) {
@@ -84,7 +82,6 @@ export const verifyAccessToken = (req: Request, res: Response, next: NextFunctio
   }
 
   const token = authHeader.split(' ')[1];
-  console.log('Extracted token:', token);
   try {
     // Verify token using JWT_SECRET
     const decoded = jwt.verify(token, config.JWT_SECRET) as {

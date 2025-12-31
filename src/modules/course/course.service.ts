@@ -367,6 +367,42 @@ const getBunnySignature = async (req: Request) => {
   return await createVideoBuffer(data.guid);
 };
 
+const createFileToBunny = async (req: Request) =>{
+  const {folder} = req.query as {folder: string};
+  if(!folder){
+    return null;
+  }
+  const REGION = 'sg';
+  const BASE_HOSTNAME = 'storage.bunnycdn.com';
+  const HOSTNAME = `${REGION}.${BASE_HOSTNAME}`;
+
+  const uniqueId = Math.random().toString(36).substring(2, 8);
+  const timestamp = Date.now();
+  const fileName = `${timestamp}-${uniqueId}`;
+  const storageZone = config.BUNNY_STORAGE_ZONE;
+  const accessKey = config.BUNNY_STORAGE_ZONE_KEY;
+  const pullZone = config.BUNNY_PULL_ZONE;
+
+  const safePath = encodeURI(folder.replace(/^\/|\/$/g, "".replace(/\/+/g, "/")));
+  const uploadfile = await fetch(
+    `https://${HOSTNAME}/${storageZone}/${safePath}/${fileName}`,
+    {
+      method: "PUT",
+      headers: {
+        AccessKey: accessKey,
+        "Content-Type": "application/octet-stream",
+      },
+      body: req.file?.buffer,
+    }
+  );
+
+  if(!uploadfile.ok){
+    const errorData = (await uploadfile.json()) as {message?: string};
+    throw new Error(`Bunny Storage API Error: ${errorData.message ?? uploadfile.statusText}`);
+  }
+  return `https://${pullZone}/${safePath}/${fileName}`;
+};
+
 export const courseService = {
   isCourseSlugAvailable,
   createCourse,
@@ -374,4 +410,5 @@ export const courseService = {
   getCourseInstructors,
   getCourseTags,
   getBunnySignature,
+  createFileToBunny
 };
