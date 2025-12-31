@@ -136,12 +136,10 @@ const courseLessonSchema = z.object({
       .optional()
   ),
   type: z.enum(['VIDEO', 'ARTICLE', 'QUIZ'], 'Type is required'),
-  contentUrl: z
-    // .url('Content url Must be a valid URL format (e.g., starting with http:// or https://)')
-    .string()
+  contentUrl: z.object({ name: z.string(), url: z.url('Content url Must be a valid URL format (e.g., starting with http:// or https://)') })
     .optional()
     .nullable(),
-  files: z.array(z.string()).optional(),
+  files: z.array(z.object({ name: z.string(), url: z.url('Content url Must be a valid URL format (e.g., starting with http:// or https://)') })).optional(),
   quiz: courseQuizSchema.optional(),
 });
 
