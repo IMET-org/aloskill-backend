@@ -79,7 +79,7 @@ const courseQuizSchema = z.object({
   title: z
     .string()
     .min(20, 'Quiz title must be at least 20 characters long')
-    .max(100, 'Quiz title cannot exceed 100 characters')
+    .max(500, 'Quiz title cannot exceed 500 characters')
     .regex(
       /^[\w\s\p{P}&\-]+$/u,
       'Quiz title contains invalid characters. Only letters, numbers, spaces, and common punctuation are allowed.'
@@ -87,7 +87,6 @@ const courseQuizSchema = z.object({
   description: z
     .string()
     .min(20, 'Quiz description must be at least 20 characters long')
-    .max(100, 'Quiz description cannot exceed 100 characters')
     .regex(
       /^[\w\s\p{P}&\-]+$/u,
       'Quiz description contains invalid characters. Only letters, numbers, spaces, and common punctuation are allowed.'
@@ -128,7 +127,6 @@ const courseLessonSchema = z.object({
       .string()
       .trim()
       .min(20, 'Description must be at least 20 characters long')
-      .max(1000, 'Description cannot exceed 1000 characters')
       .regex(
         /^[\w\s\p{P}&\-]+$/u,
         'Description contains invalid characters. Only letters, numbers, spaces, and common punctuation are allowed.'
@@ -136,10 +134,27 @@ const courseLessonSchema = z.object({
       .optional()
   ),
   type: z.enum(['VIDEO', 'ARTICLE', 'QUIZ'], 'Type is required'),
-  contentUrl: z.object({ name: z.string(), url: z.url('Content url Must be a valid URL format (e.g., starting with http:// or https://)') })
+  contentUrl: z
+    .object({
+      name: z.string().optional(),
+
+      url: z.preprocess(
+        val => (typeof val === 'string' && val.trim() === '' ? undefined : val),
+        z.string().url('Content url must be a valid URL (http:// or https://)').optional()
+      ),
+    })
     .optional()
     .nullable(),
-  files: z.array(z.object({ name: z.string(), url: z.url('Content url Must be a valid URL format (e.g., starting with http:// or https://)') })).optional(),
+  files: z
+    .array(
+      z.object({
+        name: z.string(),
+        url: z.url(
+          'Content url Must be a valid URL format (e.g., starting with http:// or https://)'
+        ),
+      })
+    )
+    .optional(),
   quiz: courseQuizSchema.optional(),
 });
 
@@ -201,24 +216,26 @@ export const CreateCourseSchema = z.object({
         .regex(/^[^<>]*$/, 'Description must not contain any opening or closing HTML tags'),
       welcomeMessage: z
         .string()
+        .max(1000, 'Welcome Message cannot exceed 1000 characters')
         .optional()
         .refine(val => {
           if (val === undefined || val === '') {
             return true;
           }
           return /^[\w\s\p{P}&\-]+$/u.test(val);
-        }, 'Title contains invalid characters. Only letters, numbers, spaces, and common punctuation are allowed.'),
+        }, 'Welcome Message contains invalid characters. Only letters, numbers, spaces, and common punctuation are allowed.'),
       congratulationsMessage: z
         .string()
+        .max(1000, 'Congratulations Message cannot exceed 1000 characters')
         .optional()
         .refine(val => {
           if (val === undefined || val === '') {
             return true;
           }
           return /^[\w\s\p{P}&\-]+$/u.test(val);
-        }, 'Title contains invalid characters. Only letters, numbers, spaces, and common punctuation are allowed.'),
-      originalPrice: z.coerce.number().min(0).positive().max(9999.99).optional(),
-      discountPrice: z.coerce.number().min(0).positive().max(9999.99).optional(),
+        }, 'Congratulations Message contains invalid characters. Only letters, numbers, spaces, and common punctuation are allowed.'),
+      originalPrice: z.coerce.number().min(0).max(9999.99).optional(),
+      discountPrice: z.coerce.number().min(0).max(9999.99).optional(),
       discountEndDate: z.coerce.date().optional().nullable(),
       courseInstructors: z
         .array(
