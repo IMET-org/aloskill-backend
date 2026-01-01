@@ -1,0 +1,414 @@
+/* eslint-disable @typescript-eslint/explicit-module-boundary-types */
+/* eslint-disable @typescript-eslint/explicit-function-return-type */
+import { executeDbOperation } from '@/config/database.js';
+import { ApplicationStatus, QuestionType, UserStatus } from '@prisma/client';
+import crypto from 'crypto';
+import { type Request } from 'express';
+import { config } from '../../config/env.js';
+import type { CreateCoursePayload } from './course.validation.js';
+
+const getCategories = async () => {
+  const categories = await executeDbOperation(async prisma => {
+    return await prisma.category.findMany({
+      select: {
+        id: true,
+        name: true,
+        parentId: true,
+        children: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+    });
+  });
+
+  return categories;
+};
+
+const isCourseSlugAvailable = async (slug: string) => {
+  const course = await executeDbOperation(async prisma => {
+    return await prisma.course.findUnique({
+      where: {
+        slug,
+      },
+      select: {
+        id: true,
+      },
+    });
+  });
+
+  return course ? false : true;
+};
+
+const getCourseInstructors = async (req: Request) => {
+  const query = req.query.instructor;
+  if (!query || typeof query !== 'string') {
+    throw new Error('Invalid Instructor Query Parameter');
+  }
+
+  if (query.length < 2) {
+    return [];
+  }
+  const instructors = await executeDbOperation(async prisma => {
+    return await prisma.instructorProfile.findMany({
+      where: {
+        displayName: { contains: query },
+        status: ApplicationStatus.APPROVED,
+        deletedAt: null,
+      },
+      select: {
+        id: true,
+        displayName: true,
+        user: {
+          select: {
+            avatarUrl: true,
+          },
+        },
+      },
+      take: 5,
+      orderBy: { displayName: 'asc' },
+    });
+  });
+
+  return instructors;
+};
+
+const getCourseTags = async (req: Request) => {
+  const query = req.query.tag;
+  if (!query || typeof query !== 'string') {
+    throw new Error('Invalid Instructor Tags Parameter');
+  }
+
+  if (query.length < 2) {
+    return [];
+  }
+
+  const tags = await executeDbOperation(async prisma => {
+    return await prisma.tag.findMany({
+      where: {
+        name: { contains: query },
+      },
+      select: {
+        id: true,
+        name: true,
+        _count: {
+          select: {
+            courses: true,
+          },
+        },
+      },
+      orderBy: {
+        courses: {
+          _count: 'asc',
+        },
+      },
+    });
+  });
+
+  return tags;
+};
+
+const createCourse = async (req: Request) => {
+  const data = req.body as CreateCoursePayload['body'];
+  const instructor = req.query.user as string;
+
+  if (data.modules.length === 0) {
+    throw new Error('Invalid course data provided');
+  }
+  if (data.modules[0]?.lessons.length === 0) {
+    throw new Error('Lessons not provided for Course Creation');
+  }
+  if (!instructor) {
+    throw new Error('No instructor found in request');
+  }
+
+  const instructorExists = await executeDbOperation(async prisma => {
+    return await prisma.user.findUnique({
+      where: {
+        email: instructor,
+        status: UserStatus.ACTIVE,
+        instructorProfile: {
+          status: ApplicationStatus.APPROVED,
+        },
+      },
+      select: {
+        instructorProfile: {
+          select: {
+            id: true,
+          },
+        },
+      },
+    });
+  });
+
+  if (!instructorExists) {
+    throw new Error(`Instructor with email ${instructor} does not exist Or not approved yet`);
+  }
+  if (instructorExists.instructorProfile === null) {
+    throw new Error(`Instructor profile not found for email ${instructor}`);
+  }
+
+  // if (instructorExists.id !== data.createdById) {
+  //   throw new Error('You are not authorized to create this course');
+  // }
+
+  const { modules, courseInstructors, ...restData } = data;
+
+  const { category, subCategory, tags, ...courseData } = restData;
+
+  const categoryData = await executeDbOperation(async prisma => {
+    const categoryRecord = await prisma.category.findFirst({
+      where: {
+        name: category,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!categoryRecord) {
+      throw new Error(`Category '${category}' does not exist`);
+    }
+
+    if (subCategory) {
+      const subCategoryRecord = await prisma.category.findFirst({
+        where: {
+          name: subCategory,
+          parentId: categoryRecord.id,
+        },
+        select: {
+          id: true,
+        },
+      });
+
+      if (!subCategoryRecord) {
+        throw new Error(`SubCategory '${subCategory}' does not exist under Category '${category}'`);
+      }
+
+      return subCategoryRecord;
+    }
+
+    return categoryRecord;
+  });
+
+  const slugify = (text: string) =>
+    text
+      .toLowerCase()
+      .trim()
+      .replace(/[^\w\s-]/g, '')
+      .replace(/[\s_-]+/g, '-')
+      .replace(/^-+|-+$/g, '');
+
+  const course = await executeDbOperation(async prisma => {
+    return await prisma.course.create({
+      data: {
+        ...courseData,
+        originalPrice: data.originalPrice ?? 0,
+        discountPrice: data.discountPrice ?? 0,
+        slug: slugify(data.title),
+        categoryId: categoryData.id,
+        createdById: instructorExists.instructorProfile?.id,
+        tags: {
+          create: tags.map((tagName: string) => ({
+            tag: {
+              connectOrCreate: {
+                where: { name: tagName.trim() },
+                create: {
+                  name: tagName.trim(),
+                  slug: slugify(tagName),
+                },
+              },
+            },
+          })),
+        },
+        modules: {
+          create: modules.map(moduleData => ({
+            title: moduleData.title,
+            position: moduleData.position,
+            lessons: {
+              create: moduleData.lessons.map(lesson => {
+                const lessonCreateInput: any = {
+                  title: lesson.title,
+                  position: lesson.position,
+                  type: lesson.type,
+                  description: lesson.description,
+                  contentUrl: lesson.contentUrl?.url,
+                  notes: lesson.notes,
+                  duration: 0,
+                  files: lesson.files?.map(file=> file.url) ?? [],
+                };
+
+                if (lesson.quiz) {
+                  lessonCreateInput.quiz = {
+                    create: {
+                      title: lesson.quiz.title,
+                      description: lesson.quiz.description,
+                      passingScore: lesson.quiz.passingScore,
+                      attemptsAllowed: lesson.quiz.attemptsAllowed,
+                      questions: {
+                        create: lesson.quiz.questions.map((q: any) => ({
+                          text: q.text,
+                          type:
+                            q.type === 'TRUE_FALSE'
+                              ? QuestionType.TRUE_FALSE
+                              : q.type === 'SINGLE_CHOICE'
+                                ? QuestionType.SINGLE_CHOICE
+                                : 'MULTIPLE_CHOICE',
+                          position: q.position,
+                          points: q.points,
+                          options: {
+                            create: q.options.map((opt: any) => ({
+                              text: opt.text,
+                              isCorrect: opt.isCorrect,
+                              position: opt.position,
+                            })),
+                          },
+                        })),
+                      },
+                    },
+                  };
+                }
+                return lessonCreateInput;
+              }),
+            },
+          })),
+        },
+        courseInstructors: {
+          create: courseInstructors?.map(courseInstructor => ({
+            instructorId: courseInstructor.instructorId,
+            role: courseInstructor.role,
+          })),
+        },
+      },
+      select: {
+        id: true,
+        title: true,
+        modules: {
+          select: {
+            title: true,
+            lessons: {
+              select: {
+                title: true,
+                duration: true,
+              },
+            },
+          },
+        },
+      },
+    });
+  });
+
+  return course;
+};
+
+const getBunnySignature = async (req: Request) => {
+  const { collectionName, fileName } = req.query as { collectionName: string; fileName: string };
+  const apiKey = config.BUNNY_STREAM_API_KEY;
+  const videoLibraryId = config.BUNNY_VIDOE_LIBRARY_ID;
+  const expires = Math.floor(Date.now() / 1000) + 900;
+
+  const createVideoBuffer = async (collectionId: string) => {
+    const createResponse = await fetch(
+      `https://video.bunnycdn.com/library/${videoLibraryId}/videos`,
+      {
+        method: 'POST',
+        body: JSON.stringify({title: fileName, collectionId }),
+        headers: { AccessKey: apiKey, 'Content-Type': 'application/json' },
+      }
+    );
+    if (!createResponse.ok) {
+      const errorData = (await createResponse.json()) as { message?: string };
+      throw new Error(`Bunny API Error: ${errorData.message ?? createResponse.statusText}`);
+    }
+    const createData = (await createResponse.json()) as { guid: string };
+
+    const signature = crypto
+      .createHash("sha256")
+      .update(`${Number(videoLibraryId)}${apiKey}${expires}${createData.guid}`)
+      .digest("hex");
+    return { videoId: createData.guid, token: signature, expires, libraryId: videoLibraryId, collectionId };
+  };
+
+  const checkCollectionAvailable = await fetch(
+    `https://video.bunnycdn.com/library/${videoLibraryId}/collections`,
+    { headers: { AccessKey: apiKey } }
+  );
+  if (!checkCollectionAvailable.ok) {
+    const errorData = (await checkCollectionAvailable.json()) as { message?: string };
+    throw new Error(`Bunny API Error: ${errorData.message ?? checkCollectionAvailable.statusText}`);
+  }
+  const listData = (await checkCollectionAvailable.json()) as {
+    items: { name: string; guid: string }[];
+  };
+  const existing = listData.items.find(c => c.name === collectionName);
+  if (existing) {
+    return await createVideoBuffer(existing.guid);
+  }
+  const createCollectionResponse = await fetch(
+    `https://video.bunnycdn.com/library/${videoLibraryId}/collections`,
+    {
+      method: 'POST',
+      headers: {
+        AccessKey: apiKey,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ name: collectionName }),
+    }
+  );
+
+  if (!createCollectionResponse.ok) {
+    const errorData = (await createCollectionResponse.json()) as { message?: string };
+    throw new Error(`Bunny API Error: ${errorData.message ?? createCollectionResponse.statusText}`);
+  }
+
+  const data = (await createCollectionResponse.json()) as { guid: string };
+  return await createVideoBuffer(data.guid);
+};
+
+const createFileToBunny = async (req: Request) =>{
+  const {folder} = req.query as {folder: string};
+  if(!folder){
+    return null;
+  }
+  const REGION = 'sg';
+  const BASE_HOSTNAME = 'storage.bunnycdn.com';
+  const HOSTNAME = `${REGION}.${BASE_HOSTNAME}`;
+
+  const uniqueId = Math.random().toString(36).substring(2, 8);
+  const timestamp = Date.now();
+  const fileName = `${timestamp}-${uniqueId}`;
+  const storageZone = config.BUNNY_STORAGE_ZONE;
+  const accessKey = config.BUNNY_STORAGE_ZONE_KEY;
+  const pullZone = config.BUNNY_PULL_ZONE;
+
+  const safePath = encodeURI(folder.replace(/^\/|\/$/g, "".replace(/\/+/g, "/")));
+  const uploadfile = await fetch(
+    `https://${HOSTNAME}/${storageZone}/${safePath}/${fileName}`,
+    {
+      method: "PUT",
+      headers: {
+        AccessKey: accessKey,
+        "Content-Type": "application/octet-stream",
+      },
+      body: req.file?.buffer,
+    }
+  );
+
+  if(!uploadfile.ok){
+    const errorData = (await uploadfile.json()) as {message?: string};
+    throw new Error(`Bunny Storage API Error: ${errorData.message ?? uploadfile.statusText}`);
+  }
+  return `https://${pullZone}/${safePath}/${fileName}`;
+};
+
+export const courseService = {
+  isCourseSlugAvailable,
+  createCourse,
+  getCategories,
+  getCourseInstructors,
+  getCourseTags,
+  getBunnySignature,
+  createFileToBunny
+};

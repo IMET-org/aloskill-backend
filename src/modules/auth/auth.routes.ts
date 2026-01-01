@@ -4,6 +4,7 @@ import {
   forgotSchema,
   loginSchema,
   registerSchema,
+  InstructorProfileSchema,
   resendVerificationEmailSchema,
   resetSchema,
   verifyUserSchema,
@@ -18,7 +19,12 @@ router.use(authLimiter);
 
 //routes
 router.post('/login', validate(loginSchema), authController.loginUser);
-router.post('/register', validate(registerSchema), authController.registerUser);
+router.post('/register', validate(registerSchema), authController.registerStudent);
+router.post(
+  '/register-instructor',
+  validate(InstructorProfileSchema),
+  authController.registerInstructor
+);
 router.post('/verify-user', validate(verifyUserSchema), authController.verifyUser);
 router.post(
   '/resend-verification',

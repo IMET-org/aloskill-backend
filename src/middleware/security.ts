@@ -6,6 +6,15 @@ import slowDown from 'express-slow-down';
 import helmet from 'helmet';
 
 // Rate limiting configuration
+export const instructorQueryLimiter = rateLimit({
+  windowMs: 1000,
+  max: 3,
+  message: {
+    error: 'Too many Instructor Searches',
+    message: 'Please try again later.',
+  },
+});
+
 export const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 100,
@@ -23,7 +32,7 @@ export const generalLimiter = rateLimit({
 // Stricter limits for authentication endpoints
 export const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 25,
+  max: 5,
   message: {
     error: 'Too many login attempts',
     message: 'Please try again in 15 minutes.',
@@ -37,32 +46,6 @@ export const speedLimiter = slowDown({
   delayAfter: 50,
   delayMs: () => 100,
 });
-
-// Advanced CORS configuration
-// export const corsOptions = {
-//   // origin: config.FRONTEND_URL,
-//   origin: (
-//     origin: string | undefined,
-//     callback: (err: Error | null, allowed?: boolean) => void
-//   ) => {
-//     const allowedOrigins = [
-//       'http://localhost:3000', // local dev
-//       'https://aloskill.com', // production (if applicable)
-//     ];
-
-//     // Allow requests with no origin (like mobile apps or curl)
-//     if (!origin || allowedOrigins.includes(origin)) {
-//       callback(null, true);
-//     } else {
-//       callback(new Error('Not allowed by CORS'));
-//     }
-//   },
-//   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
-//   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-//   exposedHeaders: ['RateLimit-Limit', 'RateLimit-Remaining', 'RateLimit-Reset'],
-//   credentials: true,
-//   maxAge: 600,
-// };
 
 export const corsOptions = {
   origin: [config.FRONTEND_URL, 'http://localhost:3000/'],

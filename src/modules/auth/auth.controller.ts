@@ -17,10 +17,9 @@ const loginUser = catchAsync(async (req, res): Promise<void> => {
   const { user, refreshToken } = result as {
     user: {
       email: string;
-      role: string;
+      role: string[];
       id: string;
-      firstName: string;
-      lastName: string;
+      displayName: string;
       profilePicture: string;
     };
     refreshToken: string;
@@ -38,8 +37,8 @@ const loginUser = catchAsync(async (req, res): Promise<void> => {
   });
 });
 
-const registerUser = catchAsync(async (req, res): Promise<void> => {
-  const result = await authService.registerUser(req);
+const registerStudent = catchAsync(async (req, res): Promise<void> => {
+  const result = await authService.registerStudent(req);
 
   if (!result) {
     throw new Error('Registration failed');
@@ -47,10 +46,9 @@ const registerUser = catchAsync(async (req, res): Promise<void> => {
   const { user, refreshToken } = result as {
     user: {
       email: string;
-      role: string;
+      role: string[];
       id: string;
-      firstName: string;
-      lastName: string;
+      displayName: string;
       profilePicture: string;
       emailVerificationToken: string;
     };
@@ -66,7 +64,7 @@ const registerUser = catchAsync(async (req, res): Promise<void> => {
 
   if (user.email && emailVerificationToken) {
     await MailService.sendEmail(user.email, 'Welcome to Aloskill!', signupWelcomeTemplate, {
-      name: user.firstName,
+      name: user.displayName,
       verificationLink: `http://localhost:3000/auth/verify-user?id=${user?.id}&token=${emailVerificationToken}`,
     });
   }
@@ -75,6 +73,28 @@ const registerUser = catchAsync(async (req, res): Promise<void> => {
     ...separateUser,
     accessToken,
     refreshToken,
+  });
+});
+
+const registerInstructor = catchAsync(async (req, res): Promise<void> => {
+  const result = await authService.registerInstructor(req);
+
+  if (!result) {
+    throw new Error('InstructorRegistration failed');
+  }
+
+  const { emailVerificationToken, passwordResetToken: _passwordResetToken, ...restData } = result;
+
+  if (emailVerificationToken) {
+    await MailService.sendEmail(result.email, 'Welcome to Aloskill!', signupWelcomeTemplate, {
+      name: result.displayName ?? 'AloSkill User',
+      verificationLink: `http://localhost:3000/auth/verify-user?id=${result.id}&token=${emailVerificationToken}`,
+    });
+  }
+
+  ResponseHandler.ok(res, 'Register Successful', {
+    ...restData,
+    redirectToVerificationPage: emailVerificationToken ? true : false,
   });
 });
 
@@ -95,16 +115,16 @@ const resendVerificationEmail = catchAsync(async (req, res): Promise<void> => {
     throw new Error('Failed to resend verification email');
   }
 
-  const { email, firstName, emailVerificationToken, id } = result as {
+  const { email, displayName, emailVerificationToken, id } = result as {
     email: string;
-    firstName: string;
+    displayName: string;
     emailVerificationToken: string;
     id: string;
   };
 
   // Send new verification email
   await MailService.sendEmail(email, 'Verify your email address', signupWelcomeTemplate, {
-    name: firstName,
+    name: displayName,
     verificationLink: `http://localhost:3000/auth/verify-user?id=${id}&token=${emailVerificationToken}`,
   });
 
@@ -121,15 +141,15 @@ const forgotPassword = catchAsync(async (req, res): Promise<void> => {
   }
 
   if (result) {
-    const { email, firstName, passwordResetToken, id } = result as {
+    const { email, displayName, passwordResetToken, id } = result as {
       email: string;
-      firstName: string;
+      displayName: string;
       passwordResetToken: string;
       id: string;
     };
 
     await MailService.sendEmail(email, 'click here to reset your password', resetPasswordTemplate, {
-      name: firstName,
+      name: displayName,
       resetLink: `http://localhost:3000/auth/reset-password?id=${id}&token=${passwordResetToken}`,
     });
   }
@@ -181,10 +201,9 @@ const refreshAccessToken = catchAsync(async (req, res): Promise<void> => {
   const { user, refreshToken } = result as {
     user: {
       email: string;
-      role: string;
+      role: string[];
       id: string;
-      firstName: string;
-      lastName: string;
+      displayName: string;
       profilePicture: string;
     };
     refreshToken: string;
@@ -203,7 +222,8 @@ const refreshAccessToken = catchAsync(async (req, res): Promise<void> => {
 
 export const authController = {
   loginUser,
-  registerUser,
+  registerStudent,
+  registerInstructor,
   verifyUser,
   resendVerificationEmail,
   forgotPassword,

@@ -7,7 +7,8 @@ import { executeDbOperation } from '@/config/database.js';
 import type { DeviceInfo } from '@/types/deviceSessionStore.js';
 import { DeviceFingerprint } from '@/utils/deviceFingerprint.js';
 import { hash, verifyHash } from '@/utils/hashing.js';
-import { UserStatus } from '@prisma/client';
+import { encryptPhoneNumber } from '@/utils/phoneNumber.js';
+import { UserRole, UserStatus } from '@prisma/client';
 import crypto from 'crypto';
 import { type Request } from 'express';
 
@@ -16,28 +17,44 @@ const REFRESH_TOKEN_TTL = 7 * 24 * 60 * 60 * 1000;
 const LOGIN_USER_SELECT = {
   id: true,
   email: true,
-  role: true,
-  firstName: true,
-  lastName: true,
-  profilePicture: true,
+  status: true,
+  avatarUrl: true,
+  assignedRole: {
+    select: {
+      role: true,
+    },
+  },
+  studentProfile: {
+    select: {
+      displayName: true,
+    },
+  },
+  instructorProfile: {
+    select: {
+      displayName: true,
+    },
+  },
 };
 
 const buildUserProfile = (user: {
   id: string;
   email: string;
-  role: string;
-  firstName: string;
-  lastName: string;
-  profilePicture: string | null;
-  emailVerificationToken?: string | null;
+  status: UserStatus;
+  avatarUrl: string | null;
+  assignedRole: { role: string }[];
+  studentProfile?: { displayName: string } | null;
+  instructorProfile?: { displayName: string } | null;
+  emailVerificationTokenHash?: string | null;
+  passwordResetTokenHash?: string | null;
 }) => ({
   id: user.id,
   email: user.email,
-  role: user.role,
-  firstName: user.firstName,
-  lastName: user.lastName,
-  profilePicture: user.profilePicture,
-  emailVerificationToken: user.emailVerificationToken,
+  status: user.status,
+  role: user.assignedRole.map(data => data.role),
+  displayName: user.studentProfile?.displayName ?? user.instructorProfile?.displayName,
+  profilePicture: user.avatarUrl,
+  emailVerificationToken: user.emailVerificationTokenHash,
+  passwordResetToken: user.passwordResetTokenHash,
 });
 
 const generateRefreshToken = () => {
@@ -84,6 +101,10 @@ const loginUser = async (req: Request) => {
 
   if (!user) {
     throw new Error('User does not exist');
+  }
+
+  if (user.status !== UserStatus.ACTIVE) {
+    throw new Error('Your account has been deactivated or Suspended');
   }
 
   // Enforce device limit (3 devices max)
@@ -229,14 +250,26 @@ const loginUser = async (req: Request) => {
           where: {
             id: user.id,
           },
-          data: {
-            loginAttempts: {
-              increment: 1,
-            },
-            ...(user.loginAttempts + 1 >= 5 && {
-              lockUntil: new Date(Date.now() + 30 * 60 * 1000),
-            }),
-          },
+          data: (() => {
+            const shouldResetAttempts =
+              !user.failedLoginAt || user.failedLoginAt < new Date(Date.now() - 30 * 60 * 1000);
+            const newAttemptCount = shouldResetAttempts ? 1 : user.loginAttempts + 1;
+
+            const updatePayload: any = shouldResetAttempts
+              ? {
+                  loginAttempts: 1,
+                  failedLoginAt: new Date(),
+                }
+              : {
+                  loginAttempts: { increment: 1 },
+                };
+
+            if (newAttemptCount >= 5) {
+              const lockUntilTime = new Date(Date.now() + 1 * 60 * 60 * 1000);
+              updatePayload.lockUntil = lockUntilTime;
+            }
+            return updatePayload;
+          })(),
         });
       }, 'update user');
       throw new Error(
@@ -256,6 +289,7 @@ const loginUser = async (req: Request) => {
           data: {
             loginAttempts: 0,
             lockUntil: null,
+            failedLoginAt: null,
             lastLogin: new Date(),
             lastLoginIP: deviceData.ipAddress,
           },
@@ -359,7 +393,7 @@ const loginUser = async (req: Request) => {
   throw new Error('Invalid login payload');
 };
 
-const registerUser = async (req: Request) => {
+const registerStudent = async (req: Request) => {
   const data = req.body;
   const deviceData = req.deviceInfo as DeviceInfo;
   const { password, googleId } = data;
@@ -377,9 +411,6 @@ const registerUser = async (req: Request) => {
       where: {
         email: data.email,
       },
-      include: {
-        sessions: true,
-      },
     });
   }, 'User Exist');
 
@@ -387,17 +418,33 @@ const registerUser = async (req: Request) => {
     if (password) {
       const hashedPassword = await hash(password as string);
       data.password = hashedPassword;
+      const { email, avatarUrl, password: hashPassword, phoneNumber, ...restData } = data;
+      const encryptedPhoneNumber = encryptPhoneNumber(phoneNumber as string);
+      restData.encryptedPhone = encryptedPhoneNumber;
+      restData.phoneLastFour = phoneNumber.slice(-4);
 
       const user = await executeDbOperation(async prisma => {
         return prisma.user.create({
           data: {
-            ...data,
-            emailVerificationToken: crypto.randomBytes(64).toString('hex'),
+            email,
+            password: hashPassword,
+            avatarUrl,
+            emailVerificationTokenHash: crypto.randomBytes(64).toString('hex'),
             emailVerificationExpires: new Date(Date.now() + 6 * 60 * 60 * 1000),
+            assignedRole: {
+              create: {
+                role: UserRole.STUDENT,
+              },
+            },
+            studentProfile: {
+              create: {
+                ...restData,
+              },
+            },
           },
           select: {
             ...LOGIN_USER_SELECT,
-            emailVerificationToken: true,
+            emailVerificationTokenHash: true,
           },
         });
       }, 'create user');
@@ -409,9 +456,16 @@ const registerUser = async (req: Request) => {
     }
     if (googleId) {
       const user = await executeDbOperation(async prisma => {
+        const { email, avatarUrl, phoneNumber, googleId: google, ...restData } = data;
+        const encryptedPhoneNumber = encryptPhoneNumber(phoneNumber as string);
+        restData.encryptedPhone = encryptedPhoneNumber;
+        restData.phoneLastFour = phoneNumber.slice(-4);
+
         return prisma.user.create({
           data: {
-            ...data,
+            email,
+            avatarUrl,
+            googleId: google,
             isEmailVerified: true,
             status: UserStatus.ACTIVE,
             lastLogin: new Date(),
@@ -431,10 +485,20 @@ const registerUser = async (req: Request) => {
                 },
               },
             },
+            assignedRole: {
+              create: {
+                role: UserRole.STUDENT,
+              },
+            },
+            studentProfile: {
+              create: {
+                ...restData,
+              },
+            },
           },
           select: {
             ...LOGIN_USER_SELECT,
-            emailVerificationToken: true,
+            emailVerificationTokenHash: true,
           },
         });
       }, 'create user');
@@ -448,7 +512,10 @@ const registerUser = async (req: Request) => {
 
   if (existingUser) {
     if (password) {
-      if (existingUser.password && existingUser.emailVerificationToken) {
+      if (existingUser.status !== UserStatus.ACTIVE) {
+        throw new Error('Your account is Inactive or Suspended');
+      }
+      if (existingUser.password && existingUser.emailVerificationTokenHash) {
         throw new Error('Email already sent, verify it and try to login');
       }
       if (existingUser.password) {
@@ -483,7 +550,7 @@ const registerUser = async (req: Request) => {
           },
           data: {
             googleId: googleId as string,
-            emailVerificationToken: null,
+            emailVerificationTokenHash: null,
             emailVerificationExpires: null,
             isEmailVerified: true,
             status: UserStatus.ACTIVE,
@@ -498,6 +565,129 @@ const registerUser = async (req: Request) => {
       };
     }
   }
+};
+
+const registerInstructor = async (req: Request) => {
+  const data = req.body;
+  if (data.DOB) {
+    data.DOB = new Date(data.DOB as string);
+  }
+
+  if (!data.email) {
+    throw new Error('User Email not found');
+  }
+
+  const existingUser = await executeDbOperation(async prisma => {
+    return prisma.user.findUnique({
+      where: {
+        email: data.email,
+      },
+      select: LOGIN_USER_SELECT,
+    });
+  }, 'User Exist in Instructor Registration');
+
+  if (!existingUser) {
+    if (!data.password) {
+      throw new Error('Password Required for Instructor Registration');
+    }
+    const hashedPassword = await hash(data.password as string);
+    data.password = hashedPassword;
+    const { email, password, phoneNumber, skills, socialAccount, ...restData } = data;
+    const encryptedPhoneNumber = encryptPhoneNumber(phoneNumber as string);
+    restData.encryptedPhone = encryptedPhoneNumber;
+    restData.phoneLastFour = phoneNumber.slice(-4);
+
+    const user = await executeDbOperation(async prisma => {
+      return prisma.user.create({
+        data: {
+          email,
+          password,
+          emailVerificationTokenHash: crypto.randomBytes(64).toString('hex'),
+          emailVerificationExpires: new Date(Date.now() + 6 * 60 * 60 * 1000),
+          instructorProfile: {
+            create: {
+              ...restData,
+              skills: {
+                createMany: {
+                  data: skills.map((skillName: string) => ({
+                    skill: skillName,
+                  })),
+                  skipDuplicates: true,
+                },
+              },
+              socialAccount: {
+                createMany: {
+                  data: socialAccount.map((social: any) => ({ ...social })),
+                  skipDuplicates: true,
+                },
+              },
+            },
+          },
+        },
+        select: {
+          ...LOGIN_USER_SELECT,
+          emailVerificationTokenHash: true,
+        },
+      });
+    }, 'create instructor profile');
+
+    return buildUserProfile(user);
+  }
+
+  if (existingUser.status === UserStatus.INACTIVE) {
+    throw new Error('Your account has been deactivated or Suspended');
+  }
+
+  if (existingUser?.instructorProfile) {
+    throw new Error('Profile Already Exists with this email');
+  }
+
+  // === If user exist but does not have an instructor profile ===
+  const {
+    email: _email,
+    password: _password,
+    phoneNumber,
+    skills,
+    socialAccount,
+    ...restData
+  } = data;
+  const encryptedPhoneNumber = encryptPhoneNumber(phoneNumber as string);
+  restData.encryptedPhone = encryptedPhoneNumber;
+  restData.phoneLastFour = phoneNumber.slice(-4);
+
+  const user = await executeDbOperation(async prisma => {
+    return prisma.user.update({
+      where: {
+        email: data.email,
+      },
+      data: {
+        instructorProfile: {
+          create: {
+            ...restData,
+            skills: {
+              createMany: {
+                data: skills.map((skillName: string) => ({
+                  skill: skillName,
+                })),
+                skipDuplicates: true,
+              },
+            },
+            socialAccount: {
+              createMany: {
+                data: socialAccount.map((social: any) => ({ ...social })),
+                skipDuplicates: true,
+              },
+            },
+          },
+        },
+      },
+      select: {
+        ...LOGIN_USER_SELECT,
+      },
+    });
+  }, 'create instructor profile');
+
+  return buildUserProfile(user);
 };
 
 const verifyUser = async (req: Request) => {
@@ -522,7 +712,10 @@ const verifyUser = async (req: Request) => {
   if (!user) {
     throw new Error('User Does Not Exist');
   } else {
-    if (user.emailVerificationToken !== token) {
+    if (user.status !== UserStatus.ACTIVE) {
+      throw new Error('Your account has been deactivated or Suspended');
+    }
+    if (user.emailVerificationTokenHash !== token) {
       throw new Error('Invalid Verification Link');
     } else {
       if (new Date(user.emailVerificationExpires as unknown as number) < new Date()) {
@@ -536,7 +729,7 @@ const verifyUser = async (req: Request) => {
             data: {
               isEmailVerified: true,
               status: UserStatus.ACTIVE,
-              emailVerificationToken: null,
+              emailVerificationTokenHash: null,
               emailVerificationExpires: null,
             },
             select: LOGIN_USER_SELECT,
@@ -565,6 +758,10 @@ const resendVerificationEmail = async (req: Request) => {
     throw new Error('User not found');
   }
 
+  if (user.status === UserStatus.INACTIVE) {
+    throw new Error('Your account has been deactivated or Suspended');
+  }
+
   if (user.isEmailVerified) {
     throw new Error('Email is already verified');
   }
@@ -576,18 +773,18 @@ const resendVerificationEmail = async (req: Request) => {
     return prisma.user.update({
       where: { id: user.id },
       data: {
-        emailVerificationToken: verificationToken,
+        emailVerificationTokenHash: verificationToken,
         emailVerificationExpires: verificationExpires,
         status: UserStatus.PENDING_VERIFICATION,
       },
       select: {
         ...LOGIN_USER_SELECT,
-        emailVerificationToken: true,
+        emailVerificationTokenHash: true,
       },
     });
   }, 'Resend Verification Email');
 
-  return updatedUser;
+  return buildUserProfile(updatedUser);
 };
 
 const forgotPassword = async (req: Request) => {
@@ -604,6 +801,9 @@ const forgotPassword = async (req: Request) => {
   if (!user) {
     throw new Error('User Does Not Exist');
   } else {
+    if (user.status !== UserStatus.ACTIVE) {
+      throw new Error('Your account has been deactivated or Suspended');
+    }
     if (!user.password) {
       throw new Error('User not registered');
     } else if (!user.isEmailVerified) {
@@ -617,16 +817,16 @@ const forgotPassword = async (req: Request) => {
             id: user.id,
           },
           data: {
-            passwordResetToken: refreshToken,
+            passwordResetTokenHash: refreshToken,
             passwordResetExpires: new Date(Date.now() + 12 * 60 * 60 * 1000),
           },
           select: {
             ...LOGIN_USER_SELECT,
-            passwordResetToken: true,
+            passwordResetTokenHash: true,
           },
         });
       }, 'Forgot Password');
-      return forgotPasswordUser;
+      return buildUserProfile(forgotPasswordUser);
     }
   }
 };
@@ -646,7 +846,10 @@ const resetPassword = async (req: Request) => {
   if (!user) {
     throw new Error('User Not Found');
   }
-  if (user.passwordResetToken !== token) {
+  if (user.status !== UserStatus.ACTIVE) {
+    throw new Error('Your account has been deactivated or Suspended');
+  }
+  if (user.passwordResetTokenHash !== token) {
     throw new Error('Invalid Reset Token');
   } else {
     if (new Date(user.passwordResetExpires as unknown as number) < new Date()) {
@@ -661,7 +864,7 @@ const resetPassword = async (req: Request) => {
           data: {
             password: hashedConfirmPassword,
             passwordChangedAt: new Date(),
-            passwordResetToken: null,
+            passwordResetTokenHash: null,
             passwordResetExpires: null,
           },
           select: LOGIN_USER_SELECT,
@@ -686,7 +889,10 @@ const changePassword = async (req: Request) => {
   if (!user) {
     throw new Error('User Not Found');
   }
-  if (user.passwordResetToken !== token) {
+  if (user.status !== UserStatus.ACTIVE) {
+    throw new Error('Your account has been deactivated or Suspended');
+  }
+  if (user.passwordResetTokenHash !== token) {
     throw new Error('Invalid Reset Token');
   } else {
     if (new Date(user.passwordResetExpires as unknown as number) < new Date()) {
@@ -705,7 +911,7 @@ const changePassword = async (req: Request) => {
             data: {
               password: hashedNewPassword,
               passwordChangedAt: new Date(),
-              passwordResetToken: null,
+              passwordResetTokenHash: null,
               passwordResetExpires: null,
             },
             select: LOGIN_USER_SELECT,
@@ -851,7 +1057,6 @@ const logoutAllDevices = async (req: Request) => {
 
 // === Refresh access token ===
 const refreshAccessToken = async (req: Request) => {
-  console.log('Server Request started.... : ', new Date().toLocaleTimeString());
   const { refreshToken, hashedToken, expiresAt } = generateRefreshToken();
   const oldRefreshToken = authHeadersValidate(req);
 
@@ -860,8 +1065,6 @@ const refreshAccessToken = async (req: Request) => {
   }
 
   const hashedOldToken = hashRefreshToken(oldRefreshToken);
-
-  console.log('Refresh token in server : ', hashedOldToken);
 
   // 1️⃣ Find the existing refresh token
   const existingToken = await executeDbOperation(async prisma => {
@@ -872,7 +1075,7 @@ const refreshAccessToken = async (req: Request) => {
   }, 'Find Existing Refresh Token');
 
   if (!existingToken) {
-    throw new Error('Refresh token not found or already revoked.');
+    throw new Error('Token not found');
   }
 
   // Check if expired or revoked
@@ -959,14 +1162,15 @@ const refreshAccessToken = async (req: Request) => {
   }
 
   return {
-    user: updatedSession.user,
+    user: buildUserProfile(updatedSession.user),
     refreshToken,
   };
 };
 
 export const authService = {
   loginUser,
-  registerUser,
+  registerStudent,
+  registerInstructor,
   verifyUser,
   resendVerificationEmail,
   forgotPassword,

@@ -34,7 +34,7 @@
     "format-all": "run-p lint:fix prettier:fix"
   },
   "dependencies": {
-    "@prisma/client": "^6.16.1",
+    "@prisma/client": "^6.18.0",
     "argon2": "^0.44.0",
     "bull": "^4.16.5",
     "bullmq": "^5.58.7",
@@ -51,6 +51,7 @@
     "ioredis": "^5.8.0",
     "jsonwebtoken": "^9.0.2",
     "mailgun.js": "^12.0.3",
+    "multer": "^2.0.2",
     "node-cron": "^4.2.1",
     "nodemailer": "^7.0.6",
     "resend": "^6.1.0",
@@ -72,6 +73,7 @@
     "@types/geoip-lite": "^1.4.4",
     "@types/hpp": "^0.2.6",
     "@types/jsonwebtoken": "^9.0.10",
+    "@types/multer": "^2.0.0",
     "@types/node": "^24.3.1",
     "@types/nodemailer": "^7.0.1",
     "@types/react": "^19.1.13",
@@ -92,7 +94,7 @@
     "lint-staged": "^16.1.6",
     "npm-run-all": "^4.1.5",
     "prettier": "^3.6.2",
-    "prisma": "^6.16.2",
+    "prisma": "^6.18.0",
     "rimraf": "^6.0.1",
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",

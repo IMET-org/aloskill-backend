@@ -45,6 +45,12 @@ const envSchema = z.object({
   REDIS_PORT: z.string().default(process.env.REDIS_PORT as string),
   REDIS_PASSWORD: z.string().default(process.env.REDIS_PASSWORD as string),
   RESEND_API_KEY: z.string().default(process.env.RESEND_API_KEY as string),
+  PHONE_KEY: z.string().default(process.env.PHONE_KEY as string),
+  BUNNY_STREAM_API_KEY: z.string().default(process.env.BUNNY_STREAM_API_KEY as string),
+  BUNNY_VIDOE_LIBRARY_ID: z.string().default(process.env.BUNNY_VIDOE_LIBRARY_ID as string),
+  BUNNY_STORAGE_ZONE: z.string().default(process.env.BUNNY_STORAGE_ZONE as string),
+  BUNNY_STORAGE_ZONE_KEY: z.string().default(process.env.BUNNY_STORAGE_ZONE_KEY as string),
+  BUNNY_PULL_ZONE: z.string().default(process.env.BUNNY_PULL_ZONE as string),
 });
 
 export const config = envSchema.parse(process.env);
