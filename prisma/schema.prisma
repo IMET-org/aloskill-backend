@@ -493,6 +493,7 @@ model Course {
   language     Language     @default(BANGLA)
   level        CourseLevel  @default(BEGINNER)
   thumbnailUrl String?
+  trailerUrl   String?
 
   categoryId  String?
   category    Category?          @relation(fields: [categoryId], references: [id], onDelete: SetNull)

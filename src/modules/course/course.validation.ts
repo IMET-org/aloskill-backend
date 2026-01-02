@@ -255,6 +255,15 @@ export const CreateCourseSchema = z.object({
         )
         .optional()
         .nullable(),
+      trailerUrl: z
+        .url('Must be a valid URL format (e.g., starting with http:// or https://)')
+        .max(500)
+        .regex(
+          /^https?:\/\/(?:www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b(?:[-a-zA-Z0-9()@:%_\+.~#?&\/=]*)$/,
+          'URL format is invalid or contains prohibited characters.'
+        )
+        .optional()
+        .nullable(),
       modules: z.array(courseModuleSchema).min(1, 'At least one module is required'),
     })
     .superRefine(({ discountPrice, originalPrice, discountEndDate }, ctx) => {
