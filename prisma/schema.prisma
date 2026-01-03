@@ -239,11 +239,13 @@ model User {
   QuizResult       QuizResult[]
   AuditLog         AuditLog[]
 
+  @@index([id])
   @@index([email])
   @@index([status])
   @@index([createdAt])
   @@index([emailVerificationTokenHash])
   @@index([passwordResetTokenHash])
+  @@index([id, deletedAt, status])
 }
 
 model UserSession {

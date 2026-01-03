@@ -1,10 +1,10 @@
 import { generalLimiter, instructorQueryLimiter } from '@/middleware/security.js';
 import { validate } from '@/middleware/validation.js';
 import express from 'express';
+import multer from 'multer';
+import { requireInstructor } from '../../middleware/auth.js';
 import { courseController } from './course.controller.js';
 import { CreateCourseSchema } from './course.validation.js';
-import { requireInstructor } from '../../middleware/auth.js';
-import multer from 'multer';
 
 const upload = multer({
     storage: multer.memoryStorage(),
@@ -24,6 +24,9 @@ router.post(
   validate(CreateCourseSchema),
   courseController.createCourse
 );
+router.get("/allCourses", requireInstructor, courseController.getAllCoursesForInstructor);
+router.get('/course/:courseId', requireInstructor, courseController.getSingleCourseForInstructorView);
+router.get('/getAndEditCourse/:courseId', requireInstructor, courseController.getSingleCourseForInstructorEdit);
 router.get('/category', courseController.getCategories);
 router.get('/slug-check/:slug', courseController.checkCourseSlugAvailability);
 router.get(

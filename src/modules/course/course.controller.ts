@@ -8,6 +8,21 @@ const createCourse = catchAsync(async (req, res): Promise<void> => {
   ResponseHandler.ok(res, 'Course Created Successfully!', result);
 });
 
+const getAllCoursesForInstructor = catchAsync(async (req, res): Promise<void> => {
+  const result = await courseService.getAllCoursesForInstructor(req);
+  ResponseHandler.ok(res, 'All Courses Fetched Successfully!', result);
+});
+
+const getSingleCourseForInstructorView = catchAsync(async (req, res): Promise<void> => {
+  const result = await courseService.getSingleCourseForInstructorView(req);
+  ResponseHandler.ok(res, 'Course fetched successfully!', result);
+});
+
+const getSingleCourseForInstructorEdit = catchAsync(async (req, res): Promise<void> => {
+  const result = await courseService.getSingleCourseForInstructorEdit(req);
+  ResponseHandler.ok(res, 'Course fetched successfully!', result);
+});
+
 const getCategories = catchAsync(async (req, res): Promise<void> => {
   const result = await courseService.getCategories();
   ResponseHandler.ok(res, 'Categories fetched successfully!', result);
@@ -83,9 +98,12 @@ const createFileToBunny = catchAsync(async (req, res): Promise<void> => {
 export const courseController = {
   getBunnySignature,
   createCourse,
+  getAllCoursesForInstructor,
   getCategories,
   checkCourseSlugAvailability,
   getCourseInstructors,
   getCourseTags,
-  createFileToBunny
+  createFileToBunny,
+  getSingleCourseForInstructorView,
+  getSingleCourseForInstructorEdit
 };

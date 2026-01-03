@@ -264,6 +264,7 @@ export const CreateCourseSchema = z.object({
         )
         .optional()
         .nullable(),
+      status: z.enum(['DRAFT', 'PUBLISHED'], 'Status is required'),
       modules: z.array(courseModuleSchema).min(1, 'At least one module is required'),
     })
     .superRefine(({ discountPrice, originalPrice, discountEndDate }, ctx) => {
