@@ -192,8 +192,8 @@ export const CreateCourseSchema = z.object({
         .min(3, 'Slug must be at least 3 characters long')
         .max(50, 'Slug cannot exceed 50 characters')
         .regex(
-          /^[a-zA-Z0-9]+(?:-[a-zA-Z0-9]+)*$/,
-          'Slug use hyphens instead of spaces, and contain no special characters.'
+          /^[a-z0-9]+(?:-[a-z0-9]+)*$/,
+          'Slug use only lowercase letters and hyphens instead of spaces, and contain no special characters.'
         ),
       tags: z
         .array(z.string('Tag is required'), 'Tag is required For this Course')
@@ -247,14 +247,42 @@ export const CreateCourseSchema = z.object({
         )
         .optional(),
       thumbnailUrl: z
-        .url('Must be a valid URL format (e.g., starting with http:// or https://)')
+        .string()
         .max(500)
-        .regex(
-          /^https?:\/\/(?:www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b(?:[-a-zA-Z0-9()@:%_\+.~#?&\/=]*)$/,
-          'URL format is invalid or contains prohibited characters.'
+        .refine(
+          value => {
+            try {
+              const url = new URL(value);
+              return url.protocol === 'https:';
+            } catch {
+              return false;
+            }
+          },
+          {
+            message: 'Thumbnail URL must be a valid HTTPS Bunny CDN URL.',
+          }
         )
         .optional()
         .nullable(),
+      trailerUrl: z
+        .string()
+        .max(500)
+        .refine(
+          value => {
+            try {
+              const url = new URL(value);
+              return url.protocol === 'https:';
+            } catch {
+              return false;
+            }
+          },
+          {
+            message: 'Trailer URL must be a valid HTTPS Bunny CDN URL.',
+          }
+        )
+        .optional()
+        .nullable(),
+      status: z.enum(['DRAFT', 'PUBLISHED'], 'Status is required'),
       modules: z.array(courseModuleSchema).min(1, 'At least one module is required'),
     })
     .superRefine(({ discountPrice, originalPrice, discountEndDate }, ctx) => {

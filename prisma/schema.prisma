@@ -239,11 +239,13 @@ model User {
   QuizResult       QuizResult[]
   AuditLog         AuditLog[]
 
+  @@index([id])
   @@index([email])
   @@index([status])
   @@index([createdAt])
   @@index([emailVerificationTokenHash])
   @@index([passwordResetTokenHash])
+  @@index([id, deletedAt, status])
 }
 
 model UserSession {
@@ -493,6 +495,7 @@ model Course {
   language     Language     @default(BANGLA)
   level        CourseLevel  @default(BEGINNER)
   thumbnailUrl String?
+  trailerUrl   String?
 
   categoryId  String?
   category    Category?          @relation(fields: [categoryId], references: [id], onDelete: SetNull)

@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
 import { executeDbOperation } from '@/config/database.js';
-import { ApplicationStatus, QuestionType, UserStatus } from '@prisma/client';
+import { ApplicationStatus, CourseStatus, QuestionType, UserStatus } from '@prisma/client';
 import crypto from 'crypto';
 import { type Request } from 'express';
 import { config } from '../../config/env.js';
@@ -28,10 +28,17 @@ const getCategories = async () => {
 };
 
 const isCourseSlugAvailable = async (slug: string) => {
+  const slugify = (text: string) =>
+    text
+      .toLowerCase()
+      .trim()
+      .replace(/[^\w\s-]/g, '')
+      .replace(/[\s_-]+/g, '-')
+      .replace(/^-+|-+$/g, '');
   const course = await executeDbOperation(async prisma => {
     return await prisma.course.findUnique({
       where: {
-        slug,
+        slug: slugify(slug),
       },
       select: {
         id: true,
@@ -207,8 +214,9 @@ const createCourse = async (req: Request) => {
         ...courseData,
         originalPrice: data.originalPrice ?? 0,
         discountPrice: data.discountPrice ?? 0,
-        slug: slugify(data.title),
+        slug: slugify(data.slug || data.title),
         categoryId: categoryData.id,
+        status: data.status === 'DRAFT' ? CourseStatus.DRAFT : CourseStatus.PUBLISHED,
         createdById: instructorExists.instructorProfile?.id,
         tags: {
           create: tags.map((tagName: string) => ({
@@ -237,7 +245,7 @@ const createCourse = async (req: Request) => {
                   contentUrl: lesson.contentUrl?.url,
                   notes: lesson.notes,
                   duration: 0,
-                  files: lesson.files?.map(file=> file.url) ?? [],
+                  files: lesson.files?.map(file => file.url) ?? [],
                 };
 
                 if (lesson.quiz) {
@@ -303,6 +311,384 @@ const createCourse = async (req: Request) => {
   return course;
 };
 
+const getAllCoursesForInstructor = async (req: Request) => {
+  const userId = req.query.userId as string;
+  if (!userId) {
+    throw new Error('User Not Provided');
+  }
+
+  const userExist = await executeDbOperation(async prisma => {
+    return await prisma.user.findUnique({
+      where: {
+        id: userId,
+        deletedAt: null,
+        status: UserStatus.ACTIVE,
+      },
+      select: {
+        instructorProfile: {
+          select: {
+            id: true,
+            status: true,
+            deletedAt: true,
+          },
+        },
+      },
+    });
+  }, 'Find User in GetAllCourses');
+
+  if (!userExist) {
+    throw new Error('User Doesnt Exist');
+  }
+  if (userExist.instructorProfile === null) {
+    throw new Error('User Is Not An Instructor');
+  }
+  if (userExist.instructorProfile.deletedAt !== null) {
+    throw new Error('User Has Been Deleted');
+  }
+  if (userExist.instructorProfile.status !== ApplicationStatus.APPROVED) {
+    throw new Error('User Is Not Approved Yet or rejected');
+  }
+
+  const getCourses = await executeDbOperation(async prisma => {
+    return await prisma.course.findMany({
+      where: {
+        OR: [
+          { createdById: userExist.instructorProfile?.id },
+          {
+            courseInstructors: {
+              some: {
+                instructorId: userExist.instructorProfile?.id,
+              },
+            },
+          },
+        ],
+      },
+      orderBy: [{ createdAt: 'desc' }],
+      select: {
+        id: true,
+        title: true,
+        thumbnailUrl: true,
+        originalPrice: true,
+        discountPrice: true,
+        status: true,
+        createdAt: true,
+        category: {
+          select: {
+            name: true,
+          },
+        },
+        courseInstructors: {
+          where: { instructorId: userExist.instructorProfile?.id },
+          select: { role: true },
+        },
+        _count: {
+          select: {
+            enrollments: true,
+            reviews: true,
+          },
+        },
+        modules: {
+          select: {
+            lessons: {
+              select: {
+                duration: true,
+              },
+            },
+            _count: {
+              select: {
+                lessons: true,
+              },
+            },
+          },
+        },
+      },
+    });
+  }, 'Get All Associated Courses');
+
+  if (getCourses.length === 0) {
+    throw new Error('No Courses Found');
+  }
+  return getCourses;
+};
+
+const getSingleCourseForInstructorView = async (req: Request) => {
+  const courseId = req.params.courseId;
+  if (!courseId) {
+    throw new Error('Course Not Provided');
+  }
+
+  const oneWeekAgo = new Date();
+  oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+
+  const getCourseDetails = await executeDbOperation(async prisma => {
+    return await prisma.course.findUnique({
+      where: { id: courseId, deletedAt: null },
+      select: {
+        title: true,
+        createdAt: true,
+        updatedAt: true,
+        level: true,
+        language: true,
+        views: true,
+        originalPrice: true,
+        discountPrice: true,
+        isDiscountActive: true,
+        currency: true,
+        ratingAverage: true,
+        ratingCount: true,
+        enrollmentCount: true,
+
+        createdBy: {
+          select: {
+            displayName: true,
+            user: { select: { avatarUrl: true } },
+          },
+        },
+        courseInstructors: {
+          select: {
+            role: true,
+            instructor: {
+              select: {
+                displayName: true,
+                user: { select: { avatarUrl: true } },
+              },
+            },
+          },
+        },
+
+        reviews: {
+          select: {
+            rating: true,
+            body: true,
+            createdAt: true,
+            user: {
+              select: {
+                studentProfile: { select: { displayName: true } },
+                avatarUrl: true,
+              },
+            },
+          },
+        },
+
+        modules: {
+          select: {
+            lessons: {
+              select: {
+                type: true,
+                duration: true,
+                files: true,
+              },
+            },
+          },
+        },
+
+        category: {
+          select: {
+            name: true,
+          },
+        },
+        tags: {
+          select: {
+            tag: {
+              select: {
+                name: true,
+              },
+            },
+          },
+        },
+        _count: {
+          select: {
+            wishlistedBy: true,
+            enrollments: {
+              where: {
+                startedAt: {
+                  gte: oneWeekAgo,
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+  }, 'Get Specific Course Data');
+
+  if (!getCourseDetails) {
+    throw new Error('Course Not Found');
+  }
+
+  const formatCourseData = (course: typeof getCourseDetails) => {
+    let totalVideoCount = 0;
+    let totalDuration = 0;
+    let totalFiles = 0;
+
+    course.modules.forEach(module => {
+      module.lessons.forEach(lesson => {
+        if (lesson.type === 'VIDEO') {
+          totalVideoCount++;
+        }
+        totalDuration += lesson.duration ?? 0;
+        totalFiles += lesson.files.length || 0;
+      });
+    });
+
+    const distribution: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+    course.reviews.forEach(r => {
+      distribution[r.rating]++;
+    });
+
+    const totalReviews = course.reviews.length || 1;
+    const ratingStats = Object.keys(distribution).map(star => {
+      const starNum = Number(star);
+      return {
+        star: starNum,
+        count: distribution[starNum],
+        percentage: `${((distribution[starNum] / totalReviews) * 100).toFixed(0)}%`,
+      };
+    });
+
+    return {
+      title: course.title,
+      originalPrice: course.originalPrice,
+      discountPrice: course.discountPrice,
+      isDiscountActive: course.isDiscountActive,
+      currency: course.currency,
+      enrollmentCount: course.enrollmentCount,
+      enrolledLastWeek: course._count.enrollments,
+      language: course.language,
+      level: course.level,
+      ratingAverage: course.ratingAverage,
+      ratingCount: course.ratingCount,
+      views: course.views,
+      createdAt: course.createdAt,
+      updatedAt: course.updatedAt,
+      tags: course.tags.map(t => t.tag.name),
+      category: course.category?.name,
+      totalWishListed: course._count.wishlistedBy,
+      createdBy: {
+        displayName: course.createdBy?.displayName,
+        avatarUrl: course.createdBy?.user.avatarUrl,
+      },
+      courseInstructors: course.courseInstructors.map(i => ({
+        role: i.role,
+        displayName: i.instructor.displayName,
+        avatarUrl: i.instructor.user.avatarUrl,
+      })),
+      reviews: course.reviews.map(review => ({
+        rating: review.rating,
+        body: review.body,
+        createdAt: review.createdAt,
+        userDisplayName: review.user.studentProfile?.displayName,
+        avatarUrl: review.user.avatarUrl,
+      })),
+      content: {
+        totalVideos: totalVideoCount,
+        totalDuration: `${Math.floor(totalDuration / 60)} mins`,
+        totalFiles,
+      },
+      ratingBreakdown: ratingStats,
+    };
+  };
+  return formatCourseData(getCourseDetails);
+};
+
+const getSingleCourseForInstructorEdit = async (req: Request) => {
+  const courseId = req.params.courseId;
+  if (!courseId) {
+    throw new Error('Course Not Provided');
+  }
+
+  const getCourseDetails = await executeDbOperation(async prisma => {
+    return await prisma.course.findUnique({
+      where: { id: courseId, deletedAt: null },
+      select: {
+        title: true,
+        slug: true,
+        description: true,
+        welcomeMessage: true,
+        congratulationsMessage: true,
+        originalPrice: true,
+        discountPrice: true,
+        discountEndDate: true,
+        language: true,
+        level: true,
+        thumbnailUrl: true,
+        trailerUrl: true,
+        category: {
+          select: {
+            name: true,
+          },
+        },
+        tags: {
+          select: {
+            tag: {
+              select: {
+                name: true,
+              },
+            },
+          },
+        },
+        courseInstructors: {
+          select: {
+            instructor: {
+              select: {
+                displayName: true,
+              },
+            },
+            role: true,
+            instructorId: true,
+          },
+        },
+        modules: {
+          select: {
+            title: true,
+            position: true,
+            lessons: {
+              select: {
+                title: true,
+                position: true,
+                type: true,
+                notes: true,
+                description: true,
+                contentUrl: true,
+                files: true,
+                quiz: {
+                  select: {
+                    title: true,
+                    description: true,
+                    passingScore: true,
+                    duration: true,
+                    attemptsAllowed: true,
+                    questions: {
+                      select: {
+                        text: true,
+                        type: true,
+                        position: true,
+                        points: true,
+                        options: {
+                          select: {
+                            position: true,
+                            text: true,
+                            isCorrect: true,
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+  }, 'Get Specific Course Data for Edit');
+
+  if (!getCourseDetails) {
+    throw new Error('Course Not Found');
+  }
+  return getCourseDetails;
+};
+
 const getBunnySignature = async (req: Request) => {
   const { collectionName, fileName } = req.query as { collectionName: string; fileName: string };
   const apiKey = config.BUNNY_STREAM_API_KEY;
@@ -314,7 +700,7 @@ const getBunnySignature = async (req: Request) => {
       `https://video.bunnycdn.com/library/${videoLibraryId}/videos`,
       {
         method: 'POST',
-        body: JSON.stringify({title: fileName, collectionId }),
+        body: JSON.stringify({ title: fileName, collectionId }),
         headers: { AccessKey: apiKey, 'Content-Type': 'application/json' },
       }
     );
@@ -325,10 +711,17 @@ const getBunnySignature = async (req: Request) => {
     const createData = (await createResponse.json()) as { guid: string };
 
     const signature = crypto
-      .createHash("sha256")
+      .createHash('sha256')
       .update(`${Number(videoLibraryId)}${apiKey}${expires}${createData.guid}`)
-      .digest("hex");
-    return { videoId: createData.guid, token: signature, expires, libraryId: videoLibraryId, collectionId };
+      .digest('hex');
+
+    return {
+      videoId: createData.guid,
+      token: signature,
+      expires,
+      libraryId: videoLibraryId,
+      collectionId,
+    };
   };
 
   const checkCollectionAvailable = await fetch(
@@ -367,48 +760,56 @@ const getBunnySignature = async (req: Request) => {
   return await createVideoBuffer(data.guid);
 };
 
-const createFileToBunny = async (req: Request) =>{
-  const {folder} = req.query as {folder: string};
-  if(!folder){
+const createFileToBunny = async (req: Request) => {
+  const { folder } = req.query as { folder: string };
+  if (!folder) {
     return null;
   }
-  const REGION = 'sg';
+  const REGION = 'sg'; // Singapore region
   const BASE_HOSTNAME = 'storage.bunnycdn.com';
-  const HOSTNAME = `${REGION}.${BASE_HOSTNAME}`;
+  const HOSTNAME = `${BASE_HOSTNAME}`;
 
   const uniqueId = Math.random().toString(36).substring(2, 8);
   const timestamp = Date.now();
-  const fileName = `${timestamp}-${uniqueId}`;
+  const fileName = `${timestamp}-${uniqueId}-${req.file?.originalname}`;
+  // const fileName = 'aloskill.pdf'; //req.file?.originalname
   const storageZone = config.BUNNY_STORAGE_ZONE;
   const accessKey = config.BUNNY_STORAGE_ZONE_KEY;
   const pullZone = config.BUNNY_PULL_ZONE;
+  const safePath = encodeURI(folder.replace(/^\/+|\/+$/g, '').replace(/\/+/g, '/'));
 
-  const safePath = encodeURI(folder.replace(/^\/|\/$/g, "".replace(/\/+/g, "/")));
-  const uploadfile = await fetch(
-    `https://${HOSTNAME}/${storageZone}/${safePath}/${fileName}`,
-    {
-      method: "PUT",
-      headers: {
-        AccessKey: accessKey,
-        "Content-Type": "application/octet-stream",
-      },
-      body: req.file?.buffer,
-    }
-  );
+  console.log('object', accessKey, HOSTNAME, storageZone, pullZone, safePath, fileName);
 
-  if(!uploadfile.ok){
-    const errorData = (await uploadfile.json()) as {message?: string};
-    throw new Error(`Bunny Storage API Error: ${errorData.message ?? uploadfile.statusText}`);
+  const uploadfile = await fetch(`https://${HOSTNAME}/${storageZone}/${safePath}/${fileName}`, {
+    method: 'PUT',
+    headers: {
+      AccessKey: accessKey,
+      'Content-Type': 'application/octet-stream',
+    },
+    body: req.file?.buffer,
+  });
+
+  // if (!uploadfile.ok) {
+  //   const errorData = (await uploadfile.json()) as { message?: string };
+  //   throw new Error(`Bunny Storage API Error: ${errorData.message ?? uploadfile.statusText}`);
+  // }
+  if (!uploadfile.ok) {
+    const errorText = await uploadfile.text();
+    throw new Error(`Bunny Storage API Error: ${errorText}`);
   }
+
   return `https://${pullZone}/${safePath}/${fileName}`;
 };
 
 export const courseService = {
   isCourseSlugAvailable,
   createCourse,
+  getAllCoursesForInstructor,
   getCategories,
   getCourseInstructors,
   getCourseTags,
   getBunnySignature,
-  createFileToBunny
+  createFileToBunny,
+  getSingleCourseForInstructorView,
+  getSingleCourseForInstructorEdit,
 };
