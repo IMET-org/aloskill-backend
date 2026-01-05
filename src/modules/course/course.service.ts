@@ -755,7 +755,7 @@ const createFileToBunny = async (req: Request) =>{
   }
   const REGION = 'sg';
   const BASE_HOSTNAME = 'storage.bunnycdn.com';
-  const HOSTNAME = `${REGION}.${BASE_HOSTNAME}`;
+  const HOSTNAME = `${BASE_HOSTNAME}`;
 
   const uniqueId = Math.random().toString(36).substring(2, 8);
   const timestamp = Date.now();
