@@ -137,7 +137,6 @@ const courseLessonSchema = z.object({
   contentUrl: z
     .object({
       name: z.string().optional(),
-
       url: z.preprocess(
         val => (typeof val === 'string' && val.trim() === '' ? undefined : val),
         z.string().url('Content url must be a valid URL (http:// or https://)').optional()
