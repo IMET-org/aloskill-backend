@@ -119,118 +119,95 @@ const getCourseTags = async (req: Request) => {
 
 const createCourse = async (req: Request) => {
   const data = req.body as CreateCoursePayload['body'];
-  const instructor = req.query.user as string;
+  const instructorEmail = req.query.user as string;
 
-  if (data.modules.length === 0) {
-    throw new Error('Invalid course data provided');
-  }
-  if (data.modules[0]?.lessons.length === 0) {
-    throw new Error('Lessons not provided for Course Creation');
-  }
-  if (!instructor) {
-    throw new Error('No instructor found in request');
-  }
+  if (data.modules.length === 0) {throw new Error('Invalid course data provided');}
+  if (data.modules[0]?.lessons.length === 0) {throw new Error('Lessons not provided');}
+  if (!instructorEmail) {throw new Error('No instructor found in request');}
 
   const instructorExists = await executeDbOperation(async prisma => {
     return await prisma.user.findUnique({
-      where: {
-        email: instructor,
-        status: UserStatus.ACTIVE,
-        instructorProfile: {
-          status: ApplicationStatus.APPROVED,
-        },
-      },
-      select: {
-        instructorProfile: {
-          select: {
-            id: true,
-          },
-        },
-      },
+      where: { email: instructorEmail, status: UserStatus.ACTIVE, instructorProfile: { status: ApplicationStatus.APPROVED } },
+      select: { instructorProfile: { select: { id: true } } },
     });
   });
 
-  if (!instructorExists) {
-    throw new Error(`Instructor with email ${instructor} does not exist Or not approved yet`);
-  }
-  if (instructorExists.instructorProfile === null) {
-    throw new Error(`Instructor profile not found for email ${instructor}`);
+  if (!instructorExists?.instructorProfile) {
+    throw new Error(`Instructor profile not found or not approvedAt`);
   }
 
-  // if (instructorExists.id !== data.createdById) {
-  //   throw new Error('You are not authorized to create this course');
-  // }
+  const primaryInstructorId = instructorExists.instructorProfile.id;
 
-  const { modules, courseInstructors, ...restData } = data;
-
+  const { id: _id, modules, courseInstructors, ...restData } = data;
   const { category, subCategory, tags, ...courseData } = restData;
 
   const categoryData = await executeDbOperation(async prisma => {
-    const categoryRecord = await prisma.category.findFirst({
-      where: {
-        name: category,
-      },
-      select: {
-        id: true,
-      },
-    });
+    const categoryRecord = await prisma.category.findFirst({ where: { name: category }, select: { id: true } });
+    if (!categoryRecord) {throw new Error(`Category '${data.category}' does not exist`);}
 
-    if (!categoryRecord) {
-      throw new Error(`Category '${category}' does not exist`);
-    }
-
-    if (subCategory) {
+    if (data.subCategory) {
       const subCategoryRecord = await prisma.category.findFirst({
-        where: {
-          name: subCategory,
-          parentId: categoryRecord.id,
-        },
-        select: {
-          id: true,
-        },
+        where: { name: subCategory, parentId: categoryRecord.id },
+        select: { id: true },
       });
-
-      if (!subCategoryRecord) {
-        throw new Error(`SubCategory '${subCategory}' does not exist under Category '${category}'`);
-      }
-
+      if (!subCategoryRecord) {throw new Error(`SubCategory '${data.subCategory}' does not exist under '${data.category}'`);}
       return subCategoryRecord;
     }
-
     return categoryRecord;
   });
 
   const slugify = (text: string) =>
-    text
-      .toLowerCase()
-      .trim()
-      .replace(/[^\w\s-]/g, '')
-      .replace(/[\s_-]+/g, '-')
-      .replace(/^-+|-+$/g, '');
+    text.toLowerCase().trim().replace(/[^\w\s-]/g, '').replace(/[\s_-]+/g, '-').replace(/^-+|-+$/g, '');
+
+  const originalPrice = data.originalPrice ?? 0;
+  const discountPrice = data.discountPrice ?? 0;
+
+  let discountPercent = 0;
+  if (originalPrice > 0 && discountPrice > 0) {
+    discountPercent = Math.round(((originalPrice - discountPrice) / originalPrice) * 100);
+  }
+
+  const isDiscountActive = data.discountEndDate ? new Date(data.discountEndDate) > new Date() : false;
 
   const course = await executeDbOperation(async prisma => {
     return await prisma.course.create({
       data: {
         ...courseData,
-        originalPrice: data.originalPrice ?? 0,
-        discountPrice: data.discountPrice ?? 0,
+        originalPrice,
+        discountPrice,
+        discountPercent,
+        isDiscountActive,
+        moduleCount: modules.length,
         slug: slugify(data.slug || data.title),
         categoryId: categoryData.id,
         status: data.status === 'DRAFT' ? CourseStatus.DRAFT : CourseStatus.PUBLISHED,
-        createdById: instructorExists.instructorProfile?.id,
+        createdById: primaryInstructorId,
+
+        courseInstructors: {
+          createMany: {
+            data: [
+              { instructorId: primaryInstructorId, role: 'PRIMARY' },
+              ...(courseInstructors
+                ?.filter(inst => inst.instructorId !== primaryInstructorId)
+                .map(inst => ({
+                  instructorId: inst.instructorId,
+                  role: 'CO_INSTRUCTOR' as const,
+                })) ?? []),
+            ],
+          },
+        },
+
         tags: {
           create: tags.map((tagName: string) => ({
             tag: {
               connectOrCreate: {
                 where: { name: tagName.trim() },
-                create: {
-                  name: tagName.trim(),
-                  slug: slugify(tagName),
-                },
+                create: { name: tagName.trim(), slug: slugify(tagName) },
               },
             },
           })),
         },
+
         modules: {
           create: modules.map(moduleData => ({
             title: moduleData.title,
@@ -245,14 +222,9 @@ const createCourse = async (req: Request) => {
                   contentUrl: lesson.contentUrl?.url,
                   contentName: lesson.contentUrl?.name,
                   notes: lesson.notes,
-                  duration: 0,
+                  duration: lesson.type === "QUIZ" ? lesson.quiz?.duration : lesson.duration,
                   files: {
-                    create: lesson.files?.map(file => {
-                      return {
-                        url: file.url,
-                        name: file.name,
-                      };
-                    }),
+                    create: lesson.files?.map(file => ({ url: file.url, name: file.name })),
                   }
                 };
 
@@ -263,18 +235,18 @@ const createCourse = async (req: Request) => {
                       description: lesson.quiz.description,
                       passingScore: lesson.quiz.passingScore,
                       attemptsAllowed: lesson.quiz.attemptsAllowed,
-                      duration: lesson.quiz.duration,
+                      duration: lesson.quiz.duration ?? 0,
                       questions: {
                         create: lesson.quiz.questions.map((q: any) => ({
                           text: q.text,
+                          position: q.position,
+                          points: q.points,
                           type:
                             q.type === 'TRUE_FALSE'
                               ? QuestionType.TRUE_FALSE
                               : q.type === 'SINGLE_CHOICE'
                                 ? QuestionType.SINGLE_CHOICE
                                 : 'MULTIPLE_CHOICE',
-                          position: q.position,
-                          points: q.points,
                           options: {
                             create: q.options.map((opt: any) => ({
                               text: opt.text,
@@ -292,32 +264,188 @@ const createCourse = async (req: Request) => {
             },
           })),
         },
-        courseInstructors: {
-          create: courseInstructors?.map(courseInstructor => ({
-            instructorId: courseInstructor.instructorId,
-            role: courseInstructor.role,
-          })),
-        },
       },
       select: {
         id: true,
-        title: true,
-        modules: {
-          select: {
-            title: true,
-            lessons: {
-              select: {
-                title: true,
-                duration: true,
-              },
-            },
-          },
-        },
-      },
+      }
     });
   });
 
   return course;
+};
+
+const updateCourse = async (req: Request) => {
+  const data = req.body as CreateCoursePayload['body'];
+  const instructorEmail = req.query.user as string;
+
+  if(!data.id) {throw new Error('Course ID Not found'); }
+  if (data.modules.length === 0) {throw new Error('Invalid course data provided');}
+  if (data.modules[0]?.lessons.length === 0) {throw new Error('Lessons not provided');}
+
+  const instructorExists = await executeDbOperation(async prisma => {
+    return await prisma.user.findUnique({
+      where: { email: instructorEmail, status: UserStatus.ACTIVE, instructorProfile: { status: ApplicationStatus.APPROVED } },
+      select: { instructorProfile: { select: { id: true } } },
+    });
+  });
+
+  if (!instructorExists?.instructorProfile) {
+    throw new Error(`Instructor profile not found for Editing the course`);
+  }
+
+  const primaryInstructorId = instructorExists.instructorProfile.id;
+
+  const { id, modules, courseInstructors, ...restData } = data;
+  const { category, subCategory, tags, ...courseData } = restData;
+
+  const categoryData = await executeDbOperation(async prisma => {
+    const categoryRecord = await prisma.category.findFirst({ where: { name: category }, select: { id: true } });
+    if (!categoryRecord) {throw new Error(`Category '${data.category}' does not exist`);}
+
+    if (data.subCategory) {
+      const subCategoryRecord = await prisma.category.findFirst({
+        where: { name: subCategory, parentId: categoryRecord.id },
+        select: { id: true },
+      });
+      if (!subCategoryRecord) {throw new Error(`SubCategory '${data.subCategory}' does not exist under '${data.category}'`);}
+      return subCategoryRecord;
+    }
+    return categoryRecord;
+  });
+
+  const slugify = (text: string) =>
+    text.toLowerCase().trim().replace(/[^\w\s-]/g, '').replace(/[\s_-]+/g, '-').replace(/^-+|-+$/g, '');
+
+  const originalPrice = data.originalPrice ?? 0;
+  const discountPrice = data.discountPrice ?? 0;
+
+  let discountPercent = 0;
+  if (originalPrice > 0 && discountPrice > 0) {
+    discountPercent = Math.round(((originalPrice - discountPrice) / originalPrice) * 100);
+  }
+
+  const isDiscountActive = data.discountEndDate ? new Date(data.discountEndDate) > new Date() : false;
+
+  const updatedCourseValue = await executeDbOperation(async (prisma) => {
+    const existingCourse = await prisma.course.findUnique({
+      where: { id: data.id as string },
+    });
+
+    if (!existingCourse) {throw new Error("Course not found");}
+
+    return await prisma.$transaction(async (tx) => {
+      const updatedCourse = await tx.course.update({
+        where: { id },
+        data: {
+          ...courseData,
+          title: data.title,
+          slug: slugify(data.slug),
+          description: data.description,
+          welcomeMessage: data.welcomeMessage,
+          congratulationsMessage: data.congratulationsMessage,
+          originalPrice: data.originalPrice,
+          discountPrice: data.discountPrice,
+          discountEndDate: data.discountEndDate ? new Date(data.discountEndDate) : null,
+          discountPercent,
+          isDiscountActive,
+          language: data.language,
+          level: data.level,
+          thumbnailUrl: data.thumbnailUrl,
+          trailerUrl: data.trailerUrl,
+          categoryId: categoryData.id,
+
+          tags: {
+            deleteMany: {},
+            create: tags.map((tagName: string) => ({
+              tag: {
+                connectOrCreate: {
+                  where: { name: tagName.trim() },
+                  create: { name: tagName.trim(), slug: slugify(tagName) },
+                },
+              },
+            })),
+          },
+
+          courseInstructors: {
+            deleteMany: {},
+            createMany: {
+              data: [
+                { instructorId: primaryInstructorId, role: 'PRIMARY' },
+                ...(courseInstructors
+                  ?.filter(inst => inst.instructorId !== primaryInstructorId)
+                  .map(inst => ({
+                    instructorId: inst.instructorId,
+                    role: 'CO_INSTRUCTOR' as const,
+                  })) ?? []),
+              ],
+            },
+          },
+        },
+        select: {
+          id: true,
+        }
+      });
+
+      await tx.module.deleteMany({ where: {courseId: id } });
+
+      for (const [_index, module] of modules.entries()) {
+        await tx.module.create({
+          data: {
+            courseId: id,
+            title: module.title,
+            position: module.position,
+            lessons: {
+              create: module.lessons.map((lesson: any) => ({
+                title: lesson.title,
+                position: lesson.position,
+                type: lesson.type,
+                description: lesson.description,
+                notes: lesson.notes,
+                contentUrl: lesson.contentUrl?.url,
+                contentName: lesson.contentUrl?.name,
+                duration: lesson.type === "QUIZ" ? lesson.quiz?.duration : lesson.duration,
+                files: {
+                  create: lesson.files?.map((file : { url:string,name:string} ) => ({ url: file.url, name: file.name })),
+                },
+                quiz: lesson.quiz ? {
+                  create: {
+                    title: lesson.quiz.title,
+                    description: lesson.quiz.description,
+                    passingScore: lesson.quiz.passingScore,
+                    attemptsAllowed: lesson.quiz.attemptsAllowed,
+                    questions: {
+                      create: lesson.quiz.questions.map((q: any) => ({
+                        text: q.text,
+                        type:
+                          q.type === 'TRUE_FALSE'
+                              ? QuestionType.TRUE_FALSE
+                              : q.type === 'SINGLE_CHOICE'
+                                ? QuestionType.SINGLE_CHOICE
+                                : 'MULTIPLE_CHOICE',
+                        points: q.points,
+                        position: q.position,
+                        options: {
+                          create: q.options.map((o: any) => ({
+                            text: o.text,
+                            isCorrect: o.isCorrect,
+                            position: o.position,
+                          })),
+                        },
+                      })),
+                    },
+                  },
+                } : undefined,
+              })),
+            },
+          }
+        });
+      }
+
+      return updatedCourse;
+    });
+  }, "Update Course Strategy");
+
+  return updatedCourseValue;
 };
 
 const getAllCoursesForInstructor = async (req: Request) => {
@@ -542,10 +670,10 @@ const getSingleCourseForInstructorView = async (req: Request) => {
           totalDuration += lesson.duration ?? 0;
         }
         if(lesson.type === "ARTICLE"){
-          totalDuration += lesson.duration ?? 5;
+          totalDuration += lesson.duration ?? 0;
         }
         if(lesson.type === "QUIZ"){
-          totalDuration += lesson.quiz?.duration ?? 0;
+          totalDuration += lesson.duration ?? 0;
         }
         totalFiles += lesson.files.length || 0;
       });
@@ -565,6 +693,9 @@ const getSingleCourseForInstructorView = async (req: Request) => {
         percentage: `${((distribution[starNum] / totalReviews) * 100).toFixed(0)}%`,
       };
     });
+    const hours = Math.floor(totalDuration / 3600);
+    const minutes = Math.floor((totalDuration % 3600) / 60);
+    const totalDurationInFormatted = `${hours}:${minutes.toString().padStart(2, '0')} mins`;
 
     return {
       title: course.title,
@@ -602,7 +733,7 @@ const getSingleCourseForInstructorView = async (req: Request) => {
       })),
       content: {
         totalVideos: totalVideoCount,
-        totalDuration: `${Math.floor(totalDuration / 60)} mins`,
+        totalDuration: totalDurationInFormatted,
         totalFiles,
       },
       ratingBreakdown: ratingStats,
@@ -621,6 +752,7 @@ const getSingleCourseForInstructorEdit = async (req: Request) => {
     return await prisma.course.findUnique({
       where: { id: courseId, deletedAt: null },
       select: {
+        id: true,
         title: true,
         slug: true,
         description: true,
@@ -633,6 +765,7 @@ const getSingleCourseForInstructorEdit = async (req: Request) => {
         level: true,
         thumbnailUrl: true,
         trailerUrl: true,
+        status: true,
         category: {
           select: {
             name: true,
@@ -876,6 +1009,7 @@ const createFileToBunny = async (req: Request) => {
 export const courseService = {
   isCourseSlugAvailable,
   createCourse,
+  updateCourse,
   getAllCoursesForInstructor,
   getCategories,
   getCourseInstructors,

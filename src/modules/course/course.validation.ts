@@ -91,7 +91,7 @@ const courseQuizSchema = z.object({
       /^[\w\s\p{P}&\-]+$/u,
       'Quiz description contains invalid characters. Only letters, numbers, spaces, and common punctuation are allowed.'
     ),
-  duration: z.number('Duration must be a number').int().positive().min(1).max(60).optional(),
+  duration: z.number('Duration must be a number and must be positive').int().positive().min(1).max(60).nullable().optional(),
   passingScore: z.number('Passing score must be a number').int().positive().min(1).max(100),
   attemptsAllowed: z.number('attemptsAllowed must be a number').int().positive().min(1).max(10),
   questions: z.array(quizQuestionSchema).nonempty('At least one question is required'),
@@ -154,6 +154,7 @@ const courseLessonSchema = z.object({
       })
     )
     .optional(),
+  duration: z.number('Lesson Duration must be a number and must be positive').int().positive().min(1).nullable().optional(),
   quiz: courseQuizSchema.optional(),
 });
 
@@ -174,6 +175,7 @@ const courseModuleSchema = z.object({
 export const CreateCourseSchema = z.object({
   body: z
     .object({
+      id: z.uuid().nullable().optional(),
       title: z
         .string()
         .trim()

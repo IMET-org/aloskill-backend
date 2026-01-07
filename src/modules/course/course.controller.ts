@@ -4,8 +4,12 @@ import { courseService } from './course.service.js';
 
 const createCourse = catchAsync(async (req, res): Promise<void> => {
   const result = await courseService.createCourse(req);
-
   ResponseHandler.ok(res, 'Course Created Successfully!', result);
+});
+
+const updateCourse = catchAsync(async (req, res): Promise<void> => {
+  const result = await courseService.updateCourse(req);
+  ResponseHandler.ok(res, 'Course Updated Successfully!', result);
 });
 
 const getAllCoursesForInstructor = catchAsync(async (req, res): Promise<void> => {
@@ -15,12 +19,12 @@ const getAllCoursesForInstructor = catchAsync(async (req, res): Promise<void> =>
 
 const getSingleCourseForInstructorView = catchAsync(async (req, res): Promise<void> => {
   const result = await courseService.getSingleCourseForInstructorView(req);
-  ResponseHandler.ok(res, 'Course fetched successfully!', result);
+  ResponseHandler.ok(res, 'Course fetched successfully for instructor view!', result);
 });
 
 const getSingleCourseForInstructorEdit = catchAsync(async (req, res): Promise<void> => {
   const result = await courseService.getSingleCourseForInstructorEdit(req);
-  ResponseHandler.ok(res, 'Course fetched successfully!', result);
+  ResponseHandler.ok(res, 'Course fetched successfully for instructor edit!', result);
 });
 
 const getCategories = catchAsync(async (req, res): Promise<void> => {
@@ -98,6 +102,7 @@ const createFileToBunny = catchAsync(async (req, res): Promise<void> => {
 export const courseController = {
   getBunnySignature,
   createCourse,
+  updateCourse,
   getAllCoursesForInstructor,
   getCategories,
   checkCourseSlugAvailability,

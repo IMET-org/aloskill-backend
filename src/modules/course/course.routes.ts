@@ -24,27 +24,43 @@ router.post(
   validate(CreateCourseSchema),
   courseController.createCourse
 );
+
+router.patch(
+  '/editOrUpdate-course',
+  requireInstructor,
+  validate(CreateCourseSchema),
+  courseController.updateCourse
+);
+
 router.get('/allCourses', requireInstructor, courseController.getAllCoursesForInstructor);
+
 router.get(
   '/course/:courseId',
   requireInstructor,
   courseController.getSingleCourseForInstructorView
 );
+
 router.get(
   '/getAndEditCourse/:courseId',
   requireInstructor,
   courseController.getSingleCourseForInstructorEdit
 );
+
 router.get('/category', courseController.getCategories);
+
 router.get('/slug-check/:slug', courseController.checkCourseSlugAvailability);
+
 router.get(
   '/instructors',
   instructorQueryLimiter,
   requireInstructor,
   courseController.getCourseInstructors
 );
+
 router.get('/tags', instructorQueryLimiter, requireInstructor, courseController.getCourseTags);
+
 router.post('/bunny-signature', requireInstructor, courseController.getBunnySignature);
+
 router.post(
   '/file-upload',
   requireInstructor,
