@@ -243,9 +243,17 @@ const createCourse = async (req: Request) => {
                   type: lesson.type,
                   description: lesson.description,
                   contentUrl: lesson.contentUrl?.url,
+                  contentName: lesson.contentUrl?.name,
                   notes: lesson.notes,
                   duration: 0,
-                  files: lesson.files?.map(file => file.url) ?? [],
+                  files: {
+                    create: lesson.files?.map(file => {
+                      return {
+                        url: file.url,
+                        name: file.name,
+                      };
+                    }),
+                  }
                 };
 
                 if (lesson.quiz) {
@@ -255,6 +263,7 @@ const createCourse = async (req: Request) => {
                       description: lesson.quiz.description,
                       passingScore: lesson.quiz.passingScore,
                       attemptsAllowed: lesson.quiz.attemptsAllowed,
+                      duration: lesson.quiz.duration,
                       questions: {
                         create: lesson.quiz.questions.map((q: any) => ({
                           text: q.text,
@@ -477,6 +486,11 @@ const getSingleCourseForInstructorView = async (req: Request) => {
                 type: true,
                 duration: true,
                 files: true,
+                quiz: {
+                  select: {
+                    duration: true,
+                  }
+                }
               },
             },
           },
@@ -525,8 +539,14 @@ const getSingleCourseForInstructorView = async (req: Request) => {
       module.lessons.forEach(lesson => {
         if (lesson.type === 'VIDEO') {
           totalVideoCount++;
+          totalDuration += lesson.duration ?? 0;
         }
-        totalDuration += lesson.duration ?? 0;
+        if(lesson.type === "ARTICLE"){
+          totalDuration += lesson.duration ?? 5;
+        }
+        if(lesson.type === "QUIZ"){
+          totalDuration += lesson.quiz?.duration ?? 0;
+        }
         totalFiles += lesson.files.length || 0;
       });
     });
@@ -650,7 +670,14 @@ const getSingleCourseForInstructorEdit = async (req: Request) => {
                 notes: true,
                 description: true,
                 contentUrl: true,
-                files: true,
+                contentName: true,
+                duration: true,
+                files: {
+                  select: {
+                    url: true,
+                    name: true,
+                  }
+                },
                 quiz: {
                   select: {
                     title: true,
@@ -686,7 +713,61 @@ const getSingleCourseForInstructorEdit = async (req: Request) => {
   if (!getCourseDetails) {
     throw new Error('Course Not Found');
   }
-  return getCourseDetails;
+
+  const formatCourseData = (course: typeof getCourseDetails)=>{
+    return {
+      ...course,
+      welcomeMessage: course.welcomeMessage ?? undefined,
+      congratulationsMessage: course.welcomeMessage ?? undefined,
+      category: "",
+      subCategory: course.category?.name,
+      tags: course.tags.map(t=>t.tag.name),
+      courseInstructors: course.courseInstructors.map(ci=>({
+        instructorId: ci.instructorId,
+        displayName: ci.instructor.displayName,
+        role: ci.role,
+      })),
+      modules: course.modules.map(m=>({
+        title: m.title,
+        position: m.position,
+        lessons: m.lessons.map(l=>({
+          title: l.title,
+          position: l.position,
+          notes:l.notes ?? undefined,
+          description:l.description ?? "",
+          type: l.type,
+          contentUrl:{
+            name:l.contentName ?? "",
+            url:l.contentUrl ?? ""
+          },
+          files:(l.files).map(f=>({
+            url:f.url,
+            name:f.name
+          })),
+          duration: l.duration,
+          quiz:l.quiz ? {
+            title: l.quiz.title,
+            description: l.quiz.description,
+            duration: l.quiz.duration,
+            passingScore: l.quiz.passingScore,
+            attemptsAllowed: l.quiz.attemptsAllowed,
+            questions: l.quiz.questions.map(q=>({
+              position: q.position,
+              text: q.text,
+              type: q.type,
+              points: q.points,
+              options:(q.options).map(o=>({
+                position:o.position,
+                text:o.text,
+                isCorrect:o.isCorrect
+              }))
+            }))
+          }: undefined
+        }))
+      }))
+    };
+  };
+  return formatCourseData(getCourseDetails);
 };
 
 const getBunnySignature = async (req: Request) => {
@@ -765,20 +846,16 @@ const createFileToBunny = async (req: Request) => {
   if (!folder) {
     return null;
   }
-  const REGION = 'sg'; // Singapore region
   const BASE_HOSTNAME = 'storage.bunnycdn.com';
   const HOSTNAME = `${BASE_HOSTNAME}`;
 
   const uniqueId = Math.random().toString(36).substring(2, 8);
   const timestamp = Date.now();
   const fileName = `${timestamp}-${uniqueId}-${req.file?.originalname}`;
-  // const fileName = 'aloskill.pdf'; //req.file?.originalname
   const storageZone = config.BUNNY_STORAGE_ZONE;
   const accessKey = config.BUNNY_STORAGE_ZONE_KEY;
   const pullZone = config.BUNNY_PULL_ZONE;
   const safePath = encodeURI(folder.replace(/^\/+|\/+$/g, '').replace(/\/+/g, '/'));
-
-  console.log('object', accessKey, HOSTNAME, storageZone, pullZone, safePath, fileName);
 
   const uploadfile = await fetch(`https://${HOSTNAME}/${storageZone}/${safePath}/${fileName}`, {
     method: 'PUT',
@@ -788,11 +865,6 @@ const createFileToBunny = async (req: Request) => {
     },
     body: req.file?.buffer,
   });
-
-  // if (!uploadfile.ok) {
-  //   const errorData = (await uploadfile.json()) as { message?: string };
-  //   throw new Error(`Bunny Storage API Error: ${errorData.message ?? uploadfile.statusText}`);
-  // }
   if (!uploadfile.ok) {
     const errorText = await uploadfile.text();
     throw new Error(`Bunny Storage API Error: ${errorText}`);

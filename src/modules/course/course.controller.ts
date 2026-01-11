@@ -33,9 +33,9 @@ const checkCourseSlugAvailability = catchAsync(async (req, res): Promise<void> =
   const isAvailable = await courseService.isCourseSlugAvailable(slug);
 
   if (isAvailable) {
-    ResponseHandler.ok(res, 'Course slug is available');
+    ResponseHandler.ok(res, 'Course slug is available', {canProceed: true});
   } else {
-    ResponseHandler.badRequest(res, 'Course slug is already taken');
+    ResponseHandler.ok(res, 'Course slug is already taken', {canProceed: false});
   }
 });
 
