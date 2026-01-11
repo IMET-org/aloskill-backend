@@ -305,4 +305,17 @@ export const CreateCourseSchema = z.object({
     }),
 });
 
+export const GetAndDeleteVideoSchema = z.object({
+  body: z.object({
+    videoUrl: z.string(),
+  }),
+});
+
+export const GetSecureVideoToken = z.object({
+  body: z.object({
+    filePath: z.string(),
+    duration: z.number().min(1).max(86400),
+  }),
+});
+
 export type CreateCoursePayload = z.infer<typeof CreateCourseSchema>;

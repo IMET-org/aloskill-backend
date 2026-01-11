@@ -4,7 +4,7 @@ import express from 'express';
 import multer from 'multer';
 import { requireInstructor } from '../../middleware/auth.js';
 import { courseController } from './course.controller.js';
-import { CreateCourseSchema } from './course.validation.js';
+import { CreateCourseSchema, GetAndDeleteVideoSchema, GetSecureVideoToken } from './course.validation.js';
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -69,5 +69,12 @@ router.post(
   },
   courseController.createFileToBunny
 );
+
+router.get('/get-video', requireInstructor, validate(GetAndDeleteVideoSchema),courseController.getVideo);
+
+router.post('/get-video-url', requireInstructor, validate(GetSecureVideoToken),courseController.getSecureVideoToken);
+
+router.delete('/delete-video', requireInstructor, validate(GetAndDeleteVideoSchema),courseController.deleteVideo);
+
 
 export const CourseRoutes = router;

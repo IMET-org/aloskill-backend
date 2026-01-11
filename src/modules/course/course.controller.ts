@@ -99,6 +99,29 @@ const createFileToBunny = catchAsync(async (req, res): Promise<void> => {
   ResponseHandler.ok(res, 'File created in bunny storage', result);
 });
 
+const getVideo = catchAsync(async (req, res): Promise<void> => {
+  const result = await courseService.getVideo(req);
+  if(result){
+    ResponseHandler.ok(res,'Video fetched successfully');
+  }else{
+    ResponseHandler.badRequest(res,'Something went wrong while fetching video!');
+  };
+});
+
+const getSecureVideoToken = catchAsync((req, res): void => {
+  const result = courseService.getSecureVideoToken(req);
+  ResponseHandler.ok(res, 'token generated successfully!', result);
+});
+
+const deleteVideo = catchAsync(async (req, res): Promise<void> => {
+  const result = await courseService.deleteVideo(req);
+  if(result){
+    ResponseHandler.ok(res,'Video deleted successfully');
+  }else{
+    ResponseHandler.badRequest(res,'Something went wrong while deleting video!');
+  };
+});
+
 export const courseController = {
   getBunnySignature,
   createCourse,
@@ -110,5 +133,8 @@ export const courseController = {
   getCourseTags,
   createFileToBunny,
   getSingleCourseForInstructorView,
-  getSingleCourseForInstructorEdit
+  getSingleCourseForInstructorEdit,
+  deleteVideo,
+  getVideo,
+  getSecureVideoToken
 };

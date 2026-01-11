@@ -1006,6 +1006,70 @@ const createFileToBunny = async (req: Request) => {
   return `https://${pullZone}/${safePath}/${fileName}`;
 };
 
+const getVideo = async(req: Request) => {
+  const {videoUrl} = req.body as {videoUrl:string};
+  if(!videoUrl){
+    throw new Error("Video Url Not Provided");
+  }
+  const getVideoResponse = await fetch(videoUrl,{
+    method:"GET",
+    headers:{
+      Accept:"application/json",
+      AccessKey:config.BUNNY_STREAM_API_KEY,
+    }
+  });
+
+  if(getVideoResponse.ok){
+    return true;
+  }
+  return false;
+};
+
+const getSecureVideoToken = (req: Request) =>{
+  const {filePath, duration} = req.body as {filePath: string, duration: number};
+  if(!filePath){
+    throw new Error("File Path Not Provided");
+  }
+
+  // const path = `/play/${filePath}`;
+  // const userIp = req.ip;
+  const authenticationKey = config.BUNNY_AUTHENTICATION_KEY;
+  const libraryId = config.BUNNY_VIDOE_LIBRARY_ID;
+  const expires = Math.floor(new Date().getTime()/1000) + 1200 + duration * 60;
+  const hashableBase = authenticationKey + filePath + expires;
+
+  const signature = crypto
+  .createHash('sha256')
+  .update(hashableBase)
+  .digest('hex');
+
+  return {
+    libraryId,
+    token: signature,
+    videoId: filePath,
+    expiresAt: expires,
+  };
+};
+
+const deleteVideo = async(req: Request) => {
+  const {videoUrl} = req.body as {videoUrl:string};
+  if(!videoUrl){
+    throw new Error("Video Url Not Provided");
+  }
+  const deleteVideoResponse = await fetch(videoUrl,{
+    method:"DELETE",
+    headers:{
+      Accept:"application/json",
+      AccessKey:config.BUNNY_STREAM_API_KEY,
+    }
+  });
+
+  if(deleteVideoResponse.ok){
+    return true;
+  }
+  return false;
+};
+
 export const courseService = {
   isCourseSlugAvailable,
   createCourse,
@@ -1018,4 +1082,7 @@ export const courseService = {
   createFileToBunny,
   getSingleCourseForInstructorView,
   getSingleCourseForInstructorEdit,
+  deleteVideo,
+  getVideo,
+  getSecureVideoToken
 };
