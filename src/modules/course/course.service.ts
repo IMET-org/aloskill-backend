@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
 import { executeDbOperation } from '@/config/database.js';
-import { ApplicationStatus, CourseStatus, QuestionType, UserStatus } from '@prisma/client';
+import { ApplicationStatus, CourseStatus, InstructorRole, QuestionType, UserStatus } from '@prisma/client';
 import crypto from 'crypto';
 import { type Request } from 'express';
 import { config } from '../../config/env.js';
@@ -548,6 +548,61 @@ const getAllCoursesForInstructor = async (req: Request) => {
   return getCourses;
 };
 
+const getAllCoursesForPublic = async () => {
+  const getCourses = await executeDbOperation(async prisma => {
+    return await prisma.course.findMany({
+      where: {
+        status: CourseStatus.PUBLISHED,
+        deletedAt: null
+      },
+      orderBy: [{ createdAt: 'desc' }],
+      select: {
+        id: true,
+        title: true,
+        thumbnailUrl: true,
+        originalPrice: true,
+        discountPrice: true,
+        status: true,
+        createdAt: true,
+        category: {
+          select: {
+            name: true,
+          },
+        },
+        courseInstructors: {
+          where: { role: InstructorRole.PRIMARY },
+          select: { role: true },
+        },
+        _count: {
+          select: {
+            enrollments: true,
+            reviews: true,
+          },
+        },
+        modules: {
+          select: {
+            lessons: {
+              select: {
+                duration: true,
+              },
+            },
+            _count: {
+              select: {
+                lessons: true,
+              },
+            },
+          },
+        },
+      },
+    });
+  }, 'Get All Associated Courses for Public view');
+
+  if (getCourses.length === 0) {
+    throw new Error('No Courses Found');
+  }
+  return getCourses;
+};
+
 const getSingleCourseForInstructorView = async (req: Request) => {
   const courseId = req.params.courseId;
   if (!courseId) {
@@ -1075,6 +1130,7 @@ export const courseService = {
   createCourse,
   updateCourse,
   getAllCoursesForInstructor,
+  getAllCoursesForPublic,
   getCategories,
   getCourseInstructors,
   getCourseTags,
