@@ -121,13 +121,23 @@ const createCourse = async (req: Request) => {
   const data = req.body as CreateCoursePayload['body'];
   const instructorEmail = req.query.user as string;
 
-  if (data.modules.length === 0) {throw new Error('Invalid course data provided');}
-  if (data.modules[0]?.lessons.length === 0) {throw new Error('Lessons not provided');}
-  if (!instructorEmail) {throw new Error('No instructor found in request');}
+  if (data.modules.length === 0) {
+    throw new Error('Invalid course data provided');
+  }
+  if (data.modules[0]?.lessons.length === 0) {
+    throw new Error('Lessons not provided');
+  }
+  if (!instructorEmail) {
+    throw new Error('No instructor found in request');
+  }
 
   const instructorExists = await executeDbOperation(async prisma => {
     return await prisma.user.findUnique({
-      where: { email: instructorEmail, status: UserStatus.ACTIVE, instructorProfile: { status: ApplicationStatus.APPROVED } },
+      where: {
+        email: instructorEmail,
+        status: UserStatus.ACTIVE,
+        instructorProfile: { status: ApplicationStatus.APPROVED },
+      },
       select: { instructorProfile: { select: { id: true } } },
     });
   });
@@ -142,22 +152,36 @@ const createCourse = async (req: Request) => {
   const { category, subCategory, tags, ...courseData } = restData;
 
   const categoryData = await executeDbOperation(async prisma => {
-    const categoryRecord = await prisma.category.findFirst({ where: { name: category }, select: { id: true } });
-    if (!categoryRecord) {throw new Error(`Category '${data.category}' does not exist`);}
+    const categoryRecord = await prisma.category.findFirst({
+      where: { name: category },
+      select: { id: true },
+    });
+    if (!categoryRecord) {
+      throw new Error(`Category '${data.category}' does not exist`);
+    }
 
     if (data.subCategory) {
       const subCategoryRecord = await prisma.category.findFirst({
         where: { name: subCategory, parentId: categoryRecord.id },
         select: { id: true },
       });
-      if (!subCategoryRecord) {throw new Error(`SubCategory '${data.subCategory}' does not exist under '${data.category}'`);}
+      if (!subCategoryRecord) {
+        throw new Error(
+          `SubCategory '${data.subCategory}' does not exist under '${data.category}'`
+        );
+      }
       return subCategoryRecord;
     }
     return categoryRecord;
   });
 
   const slugify = (text: string) =>
-    text.toLowerCase().trim().replace(/[^\w\s-]/g, '').replace(/[\s_-]+/g, '-').replace(/^-+|-+$/g, '');
+    text
+      .toLowerCase()
+      .trim()
+      .replace(/[^\w\s-]/g, '')
+      .replace(/[\s_-]+/g, '-')
+      .replace(/^-+|-+$/g, '');
 
   const originalPrice = data.originalPrice ?? 0;
   const discountPrice = data.discountPrice ?? 0;
@@ -167,7 +191,9 @@ const createCourse = async (req: Request) => {
     discountPercent = Math.round(((originalPrice - discountPrice) / originalPrice) * 100);
   }
 
-  const isDiscountActive = data.discountEndDate ? new Date(data.discountEndDate) > new Date() : false;
+  const isDiscountActive = data.discountEndDate
+    ? new Date(data.discountEndDate) > new Date()
+    : false;
 
   const course = await executeDbOperation(async prisma => {
     return await prisma.course.create({
@@ -178,7 +204,7 @@ const createCourse = async (req: Request) => {
         discountPercent,
         isDiscountActive,
         moduleCount: modules.length,
-        slug: slugify(data.slug || data.title),
+        slug: slugify(data.slug),
         categoryId: categoryData.id,
         status: data.status === 'DRAFT' ? CourseStatus.DRAFT : CourseStatus.PUBLISHED,
         createdById: primaryInstructorId,
@@ -222,10 +248,10 @@ const createCourse = async (req: Request) => {
                   contentUrl: lesson.contentUrl?.url,
                   contentName: lesson.contentUrl?.name,
                   notes: lesson.notes,
-                  duration: lesson.type === "QUIZ" ? lesson.quiz?.duration : lesson.duration,
+                  duration: lesson.type === 'QUIZ' ? lesson.quiz?.duration : lesson.duration,
                   files: {
                     create: lesson.files?.map(file => ({ url: file.url, name: file.name })),
-                  }
+                  },
                 };
 
                 if (lesson.quiz) {
@@ -267,7 +293,7 @@ const createCourse = async (req: Request) => {
       },
       select: {
         id: true,
-      }
+      },
     });
   });
 
@@ -278,13 +304,23 @@ const updateCourse = async (req: Request) => {
   const data = req.body as CreateCoursePayload['body'];
   const instructorEmail = req.query.user as string;
 
-  if(!data.id) {throw new Error('Course ID Not found'); }
-  if (data.modules.length === 0) {throw new Error('Invalid course data provided');}
-  if (data.modules[0]?.lessons.length === 0) {throw new Error('Lessons not provided');}
+  if (!data.id) {
+    throw new Error('Course ID Not found');
+  }
+  if (data.modules.length === 0) {
+    throw new Error('Invalid course data provided');
+  }
+  if (data.modules[0]?.lessons.length === 0) {
+    throw new Error('Lessons not provided');
+  }
 
   const instructorExists = await executeDbOperation(async prisma => {
     return await prisma.user.findUnique({
-      where: { email: instructorEmail, status: UserStatus.ACTIVE, instructorProfile: { status: ApplicationStatus.APPROVED } },
+      where: {
+        email: instructorEmail,
+        status: UserStatus.ACTIVE,
+        instructorProfile: { status: ApplicationStatus.APPROVED },
+      },
       select: { instructorProfile: { select: { id: true } } },
     });
   });
@@ -299,22 +335,36 @@ const updateCourse = async (req: Request) => {
   const { category, subCategory, tags, ...courseData } = restData;
 
   const categoryData = await executeDbOperation(async prisma => {
-    const categoryRecord = await prisma.category.findFirst({ where: { name: category }, select: { id: true } });
-    if (!categoryRecord) {throw new Error(`Category '${data.category}' does not exist`);}
+    const categoryRecord = await prisma.category.findFirst({
+      where: { name: category },
+      select: { id: true },
+    });
+    if (!categoryRecord) {
+      throw new Error(`Category '${data.category}' does not exist`);
+    }
 
     if (data.subCategory) {
       const subCategoryRecord = await prisma.category.findFirst({
         where: { name: subCategory, parentId: categoryRecord.id },
         select: { id: true },
       });
-      if (!subCategoryRecord) {throw new Error(`SubCategory '${data.subCategory}' does not exist under '${data.category}'`);}
+      if (!subCategoryRecord) {
+        throw new Error(
+          `SubCategory '${data.subCategory}' does not exist under '${data.category}'`
+        );
+      }
       return subCategoryRecord;
     }
     return categoryRecord;
   });
 
   const slugify = (text: string) =>
-    text.toLowerCase().trim().replace(/[^\w\s-]/g, '').replace(/[\s_-]+/g, '-').replace(/^-+|-+$/g, '');
+    text
+      .toLowerCase()
+      .trim()
+      .replace(/[^\w\s-]/g, '')
+      .replace(/[\s_-]+/g, '-')
+      .replace(/^-+|-+$/g, '');
 
   const originalPrice = data.originalPrice ?? 0;
   const discountPrice = data.discountPrice ?? 0;
@@ -324,16 +374,20 @@ const updateCourse = async (req: Request) => {
     discountPercent = Math.round(((originalPrice - discountPrice) / originalPrice) * 100);
   }
 
-  const isDiscountActive = data.discountEndDate ? new Date(data.discountEndDate) > new Date() : false;
+  const isDiscountActive = data.discountEndDate
+    ? new Date(data.discountEndDate) > new Date()
+    : false;
 
-  const updatedCourseValue = await executeDbOperation(async (prisma) => {
+  const updatedCourseValue = await executeDbOperation(async prisma => {
     const existingCourse = await prisma.course.findUnique({
       where: { id: data.id as string },
     });
 
-    if (!existingCourse) {throw new Error("Course not found");}
+    if (!existingCourse) {
+      throw new Error('Course not found');
+    }
 
-    return await prisma.$transaction(async (tx) => {
+    return await prisma.$transaction(async tx => {
       const updatedCourse = await tx.course.update({
         where: { id },
         data: {
@@ -383,10 +437,10 @@ const updateCourse = async (req: Request) => {
         },
         select: {
           id: true,
-        }
+        },
       });
 
-      await tx.module.deleteMany({ where: {courseId: id } });
+      await tx.module.deleteMany({ where: { courseId: id } });
 
       for (const [_index, module] of modules.entries()) {
         await tx.module.create({
@@ -403,47 +457,52 @@ const updateCourse = async (req: Request) => {
                 notes: lesson.notes,
                 contentUrl: lesson.contentUrl?.url,
                 contentName: lesson.contentUrl?.name,
-                duration: lesson.type === "QUIZ" ? lesson.quiz?.duration : lesson.duration,
+                duration: lesson.type === 'QUIZ' ? lesson.quiz?.duration : lesson.duration,
                 files: {
-                  create: lesson.files?.map((file : { url:string,name:string} ) => ({ url: file.url, name: file.name })),
+                  create: lesson.files?.map((file: { url: string; name: string }) => ({
+                    url: file.url,
+                    name: file.name,
+                  })),
                 },
-                quiz: lesson.quiz ? {
-                  create: {
-                    title: lesson.quiz.title,
-                    description: lesson.quiz.description,
-                    passingScore: lesson.quiz.passingScore,
-                    attemptsAllowed: lesson.quiz.attemptsAllowed,
-                    questions: {
-                      create: lesson.quiz.questions.map((q: any) => ({
-                        text: q.text,
-                        type:
-                          q.type === 'TRUE_FALSE'
-                              ? QuestionType.TRUE_FALSE
-                              : q.type === 'SINGLE_CHOICE'
-                                ? QuestionType.SINGLE_CHOICE
-                                : 'MULTIPLE_CHOICE',
-                        points: q.points,
-                        position: q.position,
-                        options: {
-                          create: q.options.map((o: any) => ({
-                            text: o.text,
-                            isCorrect: o.isCorrect,
-                            position: o.position,
+                quiz: lesson.quiz
+                  ? {
+                      create: {
+                        title: lesson.quiz.title,
+                        description: lesson.quiz.description,
+                        passingScore: lesson.quiz.passingScore,
+                        attemptsAllowed: lesson.quiz.attemptsAllowed,
+                        questions: {
+                          create: lesson.quiz.questions.map((q: any) => ({
+                            text: q.text,
+                            type:
+                              q.type === 'TRUE_FALSE'
+                                ? QuestionType.TRUE_FALSE
+                                : q.type === 'SINGLE_CHOICE'
+                                  ? QuestionType.SINGLE_CHOICE
+                                  : 'MULTIPLE_CHOICE',
+                            points: q.points,
+                            position: q.position,
+                            options: {
+                              create: q.options.map((o: any) => ({
+                                text: o.text,
+                                isCorrect: o.isCorrect,
+                                position: o.position,
+                              })),
+                            },
                           })),
                         },
-                      })),
-                    },
-                  },
-                } : undefined,
+                      },
+                    }
+                  : undefined,
               })),
             },
-          }
+          },
         });
       }
 
       return updatedCourse;
     });
-  }, "Update Course Strategy");
+  }, 'Update Course Strategy');
 
   return updatedCourseValue;
 };
@@ -509,6 +568,12 @@ const getAllCoursesForInstructor = async (req: Request) => {
         discountPrice: true,
         status: true,
         createdAt: true,
+        createdBy: {
+          select: {
+            displayName: true,
+            user: { select: { avatarUrl: true } },
+          },
+        },
         category: {
           select: {
             name: true,
@@ -567,6 +632,7 @@ const getSingleCourseForInstructorView = async (req: Request) => {
         level: true,
         language: true,
         views: true,
+        thumbnailUrl: true,
         originalPrice: true,
         discountPrice: true,
         isDiscountActive: true,
@@ -617,8 +683,8 @@ const getSingleCourseForInstructorView = async (req: Request) => {
                 quiz: {
                   select: {
                     duration: true,
-                  }
-                }
+                  },
+                },
               },
             },
           },
@@ -669,10 +735,10 @@ const getSingleCourseForInstructorView = async (req: Request) => {
           totalVideoCount++;
           totalDuration += lesson.duration ?? 0;
         }
-        if(lesson.type === "ARTICLE"){
+        if (lesson.type === 'ARTICLE') {
           totalDuration += lesson.duration ?? 0;
         }
-        if(lesson.type === "QUIZ"){
+        if (lesson.type === 'QUIZ') {
           totalDuration += lesson.duration ?? 0;
         }
         totalFiles += lesson.files.length || 0;
@@ -706,6 +772,7 @@ const getSingleCourseForInstructorView = async (req: Request) => {
       enrollmentCount: course.enrollmentCount,
       enrolledLastWeek: course._count.enrollments,
       language: course.language,
+      thumbnailUrl: course.thumbnailUrl,
       level: course.level,
       ratingAverage: course.ratingAverage,
       ratingCount: course.ratingCount,
@@ -809,7 +876,7 @@ const getSingleCourseForInstructorEdit = async (req: Request) => {
                   select: {
                     url: true,
                     name: true,
-                  }
+                  },
                 },
                 quiz: {
                   select: {
@@ -847,57 +914,59 @@ const getSingleCourseForInstructorEdit = async (req: Request) => {
     throw new Error('Course Not Found');
   }
 
-  const formatCourseData = (course: typeof getCourseDetails)=>{
+  const formatCourseData = (course: typeof getCourseDetails) => {
     return {
       ...course,
       welcomeMessage: course.welcomeMessage ?? undefined,
       congratulationsMessage: course.welcomeMessage ?? undefined,
-      category: "",
+      category: '',
       subCategory: course.category?.name,
-      tags: course.tags.map(t=>t.tag.name),
-      courseInstructors: course.courseInstructors.map(ci=>({
+      tags: course.tags.map(t => t.tag.name),
+      courseInstructors: course.courseInstructors.map(ci => ({
         instructorId: ci.instructorId,
         displayName: ci.instructor.displayName,
         role: ci.role,
       })),
-      modules: course.modules.map(m=>({
+      modules: course.modules.map(m => ({
         title: m.title,
         position: m.position,
-        lessons: m.lessons.map(l=>({
+        lessons: m.lessons.map(l => ({
           title: l.title,
           position: l.position,
-          notes:l.notes ?? undefined,
-          description:l.description ?? "",
+          notes: l.notes ?? undefined,
+          description: l.description ?? '',
           type: l.type,
-          contentUrl:{
-            name:l.contentName ?? "",
-            url:l.contentUrl ?? ""
+          contentUrl: {
+            name: l.contentName ?? '',
+            url: l.contentUrl ?? '',
           },
-          files:(l.files).map(f=>({
-            url:f.url,
-            name:f.name
+          files: l.files.map(f => ({
+            url: f.url,
+            name: f.name,
           })),
           duration: l.duration,
-          quiz:l.quiz ? {
-            title: l.quiz.title,
-            description: l.quiz.description,
-            duration: l.quiz.duration,
-            passingScore: l.quiz.passingScore,
-            attemptsAllowed: l.quiz.attemptsAllowed,
-            questions: l.quiz.questions.map(q=>({
-              position: q.position,
-              text: q.text,
-              type: q.type,
-              points: q.points,
-              options:(q.options).map(o=>({
-                position:o.position,
-                text:o.text,
-                isCorrect:o.isCorrect
-              }))
-            }))
-          }: undefined
-        }))
-      }))
+          quiz: l.quiz
+            ? {
+                title: l.quiz.title,
+                description: l.quiz.description,
+                duration: l.quiz.duration,
+                passingScore: l.quiz.passingScore,
+                attemptsAllowed: l.quiz.attemptsAllowed,
+                questions: l.quiz.questions.map(q => ({
+                  position: q.position,
+                  text: q.text,
+                  type: q.type,
+                  points: q.points,
+                  options: q.options.map(o => ({
+                    position: o.position,
+                    text: o.text,
+                    isCorrect: o.isCorrect,
+                  })),
+                })),
+              }
+            : undefined,
+        })),
+      })),
     };
   };
   return formatCourseData(getCourseDetails);
@@ -1006,42 +1075,39 @@ const createFileToBunny = async (req: Request) => {
   return `https://${pullZone}/${safePath}/${fileName}`;
 };
 
-const getVideo = async(req: Request) => {
-  const {videoUrl} = req.body as {videoUrl:string};
-  if(!videoUrl){
-    throw new Error("Video Url Not Provided");
+const getVideo = async (req: Request) => {
+  const { videoUrl } = req.body as { videoUrl: string };
+  if (!videoUrl) {
+    throw new Error('Video Url Not Provided');
   }
-  const getVideoResponse = await fetch(videoUrl,{
-    method:"GET",
-    headers:{
-      Accept:"application/json",
-      AccessKey:config.BUNNY_STREAM_API_KEY,
-    }
+  const getVideoResponse = await fetch(videoUrl, {
+    method: 'GET',
+    headers: {
+      Accept: 'application/json',
+      AccessKey: config.BUNNY_STREAM_API_KEY,
+    },
   });
 
-  if(getVideoResponse.ok){
+  if (getVideoResponse.ok) {
     return true;
   }
   return false;
 };
 
-const getSecureVideoToken = (req: Request) =>{
-  const {filePath, duration} = req.body as {filePath: string, duration: number};
-  if(!filePath){
-    throw new Error("File Path Not Provided");
+const getSecureVideoToken = (req: Request) => {
+  const { filePath, duration } = req.body as { filePath: string; duration: number };
+  if (!filePath) {
+    throw new Error('File Path Not Provided');
   }
 
   // const path = `/play/${filePath}`;
   // const userIp = req.ip;
   const authenticationKey = config.BUNNY_AUTHENTICATION_KEY;
   const libraryId = config.BUNNY_VIDOE_LIBRARY_ID;
-  const expires = Math.floor(new Date().getTime()/1000) + 1200 + duration * 60;
+  const expires = Math.floor(new Date().getTime() / 1000) + 1200 + duration * 60;
   const hashableBase = authenticationKey + filePath + expires;
 
-  const signature = crypto
-  .createHash('sha256')
-  .update(hashableBase)
-  .digest('hex');
+  const signature = crypto.createHash('sha256').update(hashableBase).digest('hex');
 
   return {
     libraryId,
@@ -1051,20 +1117,20 @@ const getSecureVideoToken = (req: Request) =>{
   };
 };
 
-const deleteVideo = async(req: Request) => {
-  const {videoUrl} = req.body as {videoUrl:string};
-  if(!videoUrl){
-    throw new Error("Video Url Not Provided");
+const deleteVideo = async (req: Request) => {
+  const { videoUrl } = req.body as { videoUrl: string };
+  if (!videoUrl) {
+    throw new Error('Video Url Not Provided');
   }
-  const deleteVideoResponse = await fetch(videoUrl,{
-    method:"DELETE",
-    headers:{
-      Accept:"application/json",
-      AccessKey:config.BUNNY_STREAM_API_KEY,
-    }
+  const deleteVideoResponse = await fetch(videoUrl, {
+    method: 'DELETE',
+    headers: {
+      Accept: 'application/json',
+      AccessKey: config.BUNNY_STREAM_API_KEY,
+    },
   });
 
-  if(deleteVideoResponse.ok){
+  if (deleteVideoResponse.ok) {
     return true;
   }
   return false;
@@ -1084,5 +1150,5 @@ export const courseService = {
   getSingleCourseForInstructorEdit,
   deleteVideo,
   getVideo,
-  getSecureVideoToken
+  getSecureVideoToken,
 };
