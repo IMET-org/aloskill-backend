@@ -1,13 +1,7 @@
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
 import { executeDbOperation } from '@/config/database.js';
-import {
-  ApplicationStatus,
-  CourseStatus,
-  InstructorRole,
-  QuestionType,
-  UserStatus,
-} from '@prisma/client';
+import { ApplicationStatus, CourseStatus, QuestionType, UserStatus } from '@prisma/client';
 import crypto from 'crypto';
 import { type Request } from 'express';
 import { config } from '../../config/env.js';
@@ -619,12 +613,15 @@ const getAllCoursesForInstructor = async (req: Request) => {
   return getCourses;
 };
 
-const getAllCoursesForPublic = async () => {
+const getAllCoursesForPublic = async (req: Request) => {
+  const { take, page, isHome, category, level, language, rating, priceMin, priceMax } = req.query;
   const getCourses = await executeDbOperation(async prisma => {
     return await prisma.course.findMany({
       where: {
         status: CourseStatus.PUBLISHED,
+        category: { ...(category && { name: category as string }) },
         deletedAt: null,
+        ...(isHome && { ratingAverage: { gte: 2 } }),
       },
       orderBy: [{ createdAt: 'desc' }],
       select: {
@@ -645,10 +642,6 @@ const getAllCoursesForPublic = async () => {
             displayName: true,
             user: { select: { avatarUrl: true } },
           },
-        },
-        courseInstructors: {
-          where: { role: InstructorRole.PRIMARY },
-          select: { role: true },
         },
         _count: {
           select: {
@@ -671,6 +664,8 @@ const getAllCoursesForPublic = async () => {
           },
         },
       },
+      ...(page && { skip: (Number(page) - 1) * Number(take) }),
+      ...(take && { take: Number(take) }),
     });
   }, 'Get All Associated Courses for Public view');
 
@@ -678,6 +673,289 @@ const getAllCoursesForPublic = async () => {
     throw new Error('No Courses Found');
   }
   return getCourses;
+};
+
+const getSingleCourseForPublicView = async (req: Request) => {
+  const courseId = req.params.courseId;
+  if (!courseId) {
+    throw new Error('Course Not Provided');
+  }
+
+  const getCourseDetails = await executeDbOperation(async prisma => {
+    return await prisma.course.findUnique({
+      where: { id: courseId, deletedAt: null },
+      select: {
+        title: true,
+        description: true,
+        trailerUrl: true,
+        createdAt: true,
+        updatedAt: true,
+        level: true,
+        language: true,
+        originalPrice: true,
+        discountPrice: true,
+        isDiscountActive: true,
+        ratingAverage: true,
+        ratingCount: true,
+        enrollmentCount: true,
+        moduleCount: true,
+
+        courseInstructors: {
+          select: {
+            instructorId: true,
+            instructor: {
+              select: {
+                ratingAverage: true,
+                skills: true,
+                displayName: true,
+                ownedCourses: {
+                  select: {
+                    enrollmentCount: true,
+                  },
+                },
+                user: {
+                  select: {
+                    avatarUrl: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+
+        reviews: {
+          select: {
+            rating: true,
+            body: true,
+            createdAt: true,
+            user: {
+              select: {
+                studentProfile: { select: { displayName: true } },
+                avatarUrl: true,
+              },
+            },
+          },
+        },
+
+        modules: {
+          select: {
+            title: true,
+            position: true,
+            lessons: {
+              select: {
+                position: true,
+                contentUrl: true,
+                title: true,
+                type: true,
+                duration: true,
+                files: {
+                  select: {
+                    name: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+
+        category: {
+          select: {
+            name: true,
+          },
+        },
+      },
+    });
+  }, 'Get Specific Course Data');
+
+  if (!getCourseDetails) {
+    throw new Error('Course Not Found');
+  }
+
+  const formatCourseData = (course: typeof getCourseDetails) => {
+    let totalDuration = 0;
+    let totalFiles = 0;
+    let totalArticles = 0;
+
+    course.modules.forEach(module => {
+      module.lessons.forEach(lesson => {
+        if (lesson.type === 'VIDEO') {
+          totalDuration += lesson.duration ?? 0;
+        }
+        if (lesson.type === 'ARTICLE') {
+          totalDuration += lesson.duration ?? 0;
+          totalArticles++;
+        }
+        if (lesson.type === 'QUIZ') {
+          totalDuration += lesson.duration ?? 0;
+        }
+        totalFiles += lesson.files.length || 0;
+      });
+    });
+
+    const distribution: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+    course.reviews.forEach(r => {
+      distribution[r.rating]++;
+    });
+
+    const totalReviews = course.reviews.length || 1;
+    const ratingStats = Object.keys(distribution).map(star => {
+      const starNum = Number(star);
+      return {
+        star: starNum,
+        count: distribution[starNum],
+        percentage: `${((distribution[starNum] / totalReviews) * 100).toFixed(0)}%`,
+      };
+    });
+    const hours = Math.floor(totalDuration / 3600);
+    const minutes = Math.floor((totalDuration % 3600) / 60);
+    const totalDurationInFormatted = `${hours}:${minutes.toString().padStart(2, '0')} mins`;
+
+    return {
+      title: course.title,
+      desciption: course.description,
+      trailerUrl: course.trailerUrl,
+      originalPrice: course.originalPrice,
+      discountPrice: course.discountPrice,
+      isDiscountActive: course.isDiscountActive,
+      language: course.language,
+      level: course.level,
+      ratingAverage: course.ratingAverage,
+      ratingCount: course.ratingCount,
+      enrollmentCount: course.enrollmentCount,
+      createdAt: course.createdAt,
+      updatedAt: course.updatedAt,
+      category: course.category?.name,
+      courseInstructors: course.courseInstructors.map(i => ({
+        instructorId: i.instructorId,
+        rating: i.instructor.ratingAverage,
+        skills: i.instructor.skills.map(s => s.skill),
+        totalStudents: i.instructor.ownedCourses.reduce((a, b) => b.enrollmentCount + a, 0),
+        displayName: i.instructor.displayName,
+        avatarUrl: i.instructor.user.avatarUrl,
+      })),
+      reviews: course.reviews.map(review => ({
+        rating: review.rating,
+        body: review.body,
+        createdAt: review.createdAt,
+        userDisplayName: review.user.studentProfile?.displayName,
+        avatarUrl: review.user.avatarUrl,
+      })),
+      content: {
+        totalModules: course.moduleCount,
+        totalLessons: course.modules.reduce((a, b) => b.lessons.length + a, 0),
+        totalDuration: totalDurationInFormatted,
+        totalArticles,
+        totalFiles,
+      },
+      modules: course.modules.map(m => {
+        return {
+          title: m.title,
+          duration: m.lessons.reduce((a, b) => (b.duration ?? 0) + a, 0),
+          lessons: m.lessons.map(l => {
+            return {
+              title: l.title,
+              duration: l.duration,
+              type: l.type,
+              contentUrl: m.position === 1 && l.position < 3 ? l.contentUrl : null,
+            };
+          }),
+        };
+      }),
+      ratingBreakdown: ratingStats,
+    };
+  };
+  return formatCourseData(getCourseDetails);
+};
+
+const getSingleCourseForPaidView = async (req: Request) => {
+  const courseId = req.params.courseId;
+  if (!courseId) {
+    throw new Error('Course Not Provided');
+  }
+
+  const getCourseDetails = await executeDbOperation(async prisma => {
+    return await prisma.course.findUnique({
+      where: { id: courseId, deletedAt: null },
+      select: {
+        title: true,
+        createdAt: true,
+        updatedAt: true,
+
+        modules: {
+          select: {
+            title: true,
+            position: true,
+            lessons: {
+              select: {
+                position: true,
+                contentUrl: true,
+                title: true,
+                description: true,
+                notes: true,
+                type: true,
+                duration: true,
+                files: {
+                  select: {
+                    name: true,
+                    url: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+  }, 'Get Specific Course Data for paid view');
+
+  if (!getCourseDetails) {
+    throw new Error('Course Not Found');
+  }
+
+  const formatCourseData = (course: typeof getCourseDetails) => {
+    let totalDuration = 0;
+
+    course.modules.forEach(module => {
+      module.lessons.forEach(lesson => {
+        totalDuration += lesson.duration ?? 0;
+      });
+    });
+
+    const hours = Math.floor(totalDuration / 3600);
+    const minutes = Math.floor((totalDuration % 3600) / 60);
+    const totalDurationInFormatted = `${hours}h ${minutes.toString().padStart(2, '0')} m`;
+
+    return {
+      title: course.title,
+      createdAt: course.createdAt,
+      updatedAt: course.updatedAt,
+      content: {
+        totalLessons: course.modules.reduce((a, b) => b.lessons.length + a, 0),
+        totalDuration: totalDurationInFormatted,
+      },
+      modules: course.modules.map(m => {
+        return {
+          isExpanded: false,
+          position: m.position,
+          title: m.title,
+          duration: m.lessons.reduce((a, b) => (b.duration ?? 0) + a, 0),
+          lessons: m.lessons.map(l => {
+            return {
+              postion: l.position,
+              title: l.title,
+              description: l.description,
+              notes: l.notes,
+              duration: l.duration,
+              type: l.type,
+              contentUrl: l.contentUrl,
+              files: l.files.map(f => ({ name: f.name, url: f.url })),
+            };
+          }),
+        };
+      }),
+    };
+  };
+  return formatCourseData(getCourseDetails);
 };
 
 const getSingleCourseForInstructorView = async (req: Request) => {
@@ -871,289 +1149,6 @@ const getSingleCourseForInstructorView = async (req: Request) => {
         totalFiles,
       },
       ratingBreakdown: ratingStats,
-    };
-  };
-  return formatCourseData(getCourseDetails);
-};
-
-const getSingleCourseForPublicView = async (req: Request) => {
-  const courseId = req.params.courseId;
-  if (!courseId) {
-    throw new Error('Course Not Provided');
-  }
-
-  const getCourseDetails = await executeDbOperation(async prisma => {
-    return await prisma.course.findUnique({
-      where: { id: courseId, deletedAt: null },
-      select: {
-        title: true,
-        description: true,
-        trailerUrl: true,
-        createdAt: true,
-        updatedAt: true,
-        level: true,
-        language: true,
-        originalPrice: true,
-        discountPrice: true,
-        isDiscountActive: true,
-        ratingAverage: true,
-        ratingCount: true,
-        enrollmentCount: true,
-        moduleCount: true,
-
-        courseInstructors: {
-          select: {
-            instructorId: true,
-            instructor: {
-              select: {
-                ratingAverage : true,
-                skills: true,
-                displayName: true,
-                ownedCourses: {
-                  select: {
-                    enrollmentCount: true,
-                  }
-                },
-                user: {
-                  select: {
-                    avatarUrl: true,
-                  }
-                },
-              },
-            },
-          },
-        },
-
-        reviews: {
-          select: {
-            rating: true,
-            body: true,
-            createdAt: true,
-            user: {
-              select: {
-                studentProfile: { select: { displayName: true } },
-                avatarUrl: true,
-              },
-            },
-          },
-        },
-
-        modules: {
-          select: {
-            title: true,
-            position: true,
-            lessons: {
-              select: {
-                position: true,
-                contentUrl: true,
-                title: true,
-                type: true,
-                duration: true,
-                files: {
-                  select: {
-                    name: true
-                  }
-                }
-              },
-            },
-          },
-        },
-
-        category: {
-          select: {
-            name: true,
-          },
-        },
-      },
-    });
-  }, 'Get Specific Course Data');
-
-  if (!getCourseDetails) {
-    throw new Error('Course Not Found');
-  }
-
-  const formatCourseData = (course: typeof getCourseDetails) => {
-    let totalDuration = 0;
-    let totalFiles = 0;
-    let totalArticles = 0;
-
-    course.modules.forEach(module => {
-      module.lessons.forEach(lesson => {
-        if (lesson.type === 'VIDEO') {
-          totalDuration += lesson.duration ?? 0;
-        }
-        if(lesson.type === "ARTICLE"){
-          totalDuration += lesson.duration ?? 0;
-          totalArticles ++;
-        }
-        if(lesson.type === "QUIZ"){
-          totalDuration += lesson.duration ?? 0;
-        }
-        totalFiles += lesson.files.length || 0;
-      });
-    });
-
-    const distribution: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
-    course.reviews.forEach(r => {
-      distribution[r.rating]++;
-    });
-
-    const totalReviews = course.reviews.length || 1;
-    const ratingStats = Object.keys(distribution).map(star => {
-      const starNum = Number(star);
-      return {
-        star: starNum,
-        count: distribution[starNum],
-        percentage: `${((distribution[starNum] / totalReviews) * 100).toFixed(0)}%`,
-      };
-    });
-    const hours = Math.floor(totalDuration / 3600);
-    const minutes = Math.floor((totalDuration % 3600) / 60);
-    const totalDurationInFormatted = `${hours}:${minutes.toString().padStart(2, '0')} mins`;
-
-    return {
-      title: course.title,
-      desciption: course.description,
-      trailerUrl: course.trailerUrl,
-      originalPrice: course.originalPrice,
-      discountPrice: course.discountPrice,
-      isDiscountActive: course.isDiscountActive,
-      language: course.language,
-      level: course.level,
-      ratingAverage: course.ratingAverage,
-      ratingCount: course.ratingCount,
-      enrollmentCount: course.enrollmentCount,
-      createdAt: course.createdAt,
-      updatedAt: course.updatedAt,
-      category: course.category?.name,
-      courseInstructors: course.courseInstructors.map(i => ({
-        instructorId: i.instructorId,
-        rating: i.instructor.ratingAverage,
-        skills: i.instructor.skills.map(s=> s.skill),
-        totalStudents: i.instructor.ownedCourses.reduce((a,b)=> (b.enrollmentCount+a), 0),
-        displayName: i.instructor.displayName,
-        avatarUrl: i.instructor.user.avatarUrl,
-      })),
-      reviews: course.reviews.map(review => ({
-        rating: review.rating,
-        body: review.body,
-        createdAt: review.createdAt,
-        userDisplayName: review.user.studentProfile?.displayName,
-        avatarUrl: review.user.avatarUrl,
-      })),
-      content: {
-        totalModules: course.moduleCount,
-        totalLessons: course.modules.reduce((a,b)=> b.lessons.length + a, 0),
-        totalDuration: totalDurationInFormatted,
-        totalArticles,
-        totalFiles,
-      },
-      modules: course.modules.map(m=> {
-        return {
-          title: m.title,
-          duration: m.lessons.reduce((a,b)=> (b.duration ?? 0) + a, 0),
-          lessons: m.lessons.map(l=> {
-            return {
-              title: l.title,
-              duration: l.duration,
-              type: l.type,
-              contentUrl: (m.position === 1 && l.position < 3) ? l.contentUrl : null,
-            };
-          })
-        };
-      }),
-      ratingBreakdown: ratingStats,
-    };
-  };
-  return formatCourseData(getCourseDetails);
-};
-
-const getSingleCourseForPaidView = async (req: Request) => {
-  const courseId = req.params.courseId;
-  if (!courseId) {
-    throw new Error('Course Not Provided');
-  }
-
-  const getCourseDetails = await executeDbOperation(async prisma => {
-    return await prisma.course.findUnique({
-      where: { id: courseId, deletedAt: null },
-      select: {
-        title: true,
-        createdAt: true,
-        updatedAt: true,
-
-        modules: {
-          select: {
-            title: true,
-            position: true,
-            lessons: {
-              select: {
-                position: true,
-                contentUrl: true,
-                title: true,
-                description: true,
-                notes: true,
-                type: true,
-                duration: true,
-                files: {
-                  select: {
-                    name: true,
-                    url: true
-                  }
-                },
-              },
-            },
-          },
-        },
-      },
-    });
-  }, 'Get Specific Course Data for paid view');
-
-  if (!getCourseDetails) {
-    throw new Error('Course Not Found');
-  }
-
-  const formatCourseData = (course: typeof getCourseDetails) => {
-    let totalDuration = 0;
-
-    course.modules.forEach(module => {
-      module.lessons.forEach(lesson => {
-        totalDuration += lesson.duration ?? 0;
-      });
-    });
-
-    const hours = Math.floor(totalDuration / 3600);
-    const minutes = Math.floor((totalDuration % 3600) / 60);
-    const totalDurationInFormatted = `${hours}h ${minutes.toString().padStart(2, '0')} m`;
-
-    return {
-      title: course.title,
-      createdAt: course.createdAt,
-      updatedAt: course.updatedAt,
-      content: {
-        totalLessons: course.modules.reduce((a,b)=> b.lessons.length + a, 0),
-        totalDuration: totalDurationInFormatted,
-      },
-      modules: course.modules.map(m=> {
-        return {
-          isExpanded: false,
-          position: m.position,
-          title: m.title,
-          duration: m.lessons.reduce((a,b)=> (b.duration ?? 0) + a, 0),
-          lessons: m.lessons.map(l=> {
-            return {
-              postion: l.position,
-              title: l.title,
-              description: l.description,
-              notes: l.notes,
-              duration: l.duration,
-              type: l.type,
-              contentUrl: l.contentUrl,
-              files: l.files.map(f => ({name: f.name, url: f.url}))
-            };
-          })
-        };
-      }),
     };
   };
   return formatCourseData(getCourseDetails);

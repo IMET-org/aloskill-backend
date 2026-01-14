@@ -18,7 +18,7 @@ const getAllCoursesForInstructor = catchAsync(async (req, res): Promise<void> =>
 });
 
 const getAllCoursesForPublic = catchAsync(async (req, res): Promise<void> => {
-  const result = await courseService.getAllCoursesForPublic();
+  const result = await courseService.getAllCoursesForPublic(req);
   ResponseHandler.ok(res, 'All Courses Fetched Successfully for Public view!', result);
 });
 
@@ -52,9 +52,9 @@ const checkCourseSlugAvailability = catchAsync(async (req, res): Promise<void> =
   const isAvailable = await courseService.isCourseSlugAvailable(slug);
 
   if (isAvailable) {
-    ResponseHandler.ok(res, 'Course slug is available', {canProceed: true});
+    ResponseHandler.ok(res, 'Course slug is available', { canProceed: true });
   } else {
-    ResponseHandler.ok(res, 'Course slug is already taken', {canProceed: false});
+    ResponseHandler.ok(res, 'Course slug is already taken', { canProceed: false });
   }
 });
 
@@ -116,11 +116,11 @@ const createFileToBunny = catchAsync(async (req, res): Promise<void> => {
 
 const getVideo = catchAsync(async (req, res): Promise<void> => {
   const result = await courseService.getVideo(req);
-  if(result){
-    ResponseHandler.ok(res,'Video fetched successfully');
-  }else{
-    ResponseHandler.badRequest(res,'Something went wrong while fetching video!');
-  };
+  if (result) {
+    ResponseHandler.ok(res, 'Video fetched successfully');
+  } else {
+    ResponseHandler.badRequest(res, 'Something went wrong while fetching video!');
+  }
 });
 
 const getSecureVideoToken = catchAsync((req, res): void => {
@@ -130,11 +130,11 @@ const getSecureVideoToken = catchAsync((req, res): void => {
 
 const deleteVideo = catchAsync(async (req, res): Promise<void> => {
   const result = await courseService.deleteVideo(req);
-  if(result){
-    ResponseHandler.ok(res,'Video deleted successfully');
-  }else{
-    ResponseHandler.badRequest(res,'Something went wrong while deleting video!');
-  };
+  if (result) {
+    ResponseHandler.ok(res, 'Video deleted successfully');
+  } else {
+    ResponseHandler.badRequest(res, 'Something went wrong while deleting video!');
+  }
 });
 
 export const courseController = {
@@ -154,5 +154,5 @@ export const courseController = {
   getSingleCourseForInstructorEdit,
   deleteVideo,
   getVideo,
-  getSecureVideoToken
+  getSecureVideoToken,
 };
