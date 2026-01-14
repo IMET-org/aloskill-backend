@@ -47,6 +47,16 @@ router.get(
 );
 
 router.get(
+  '/public/viewCourse/:courseId',
+  courseController.getSingleCourseForPublicView
+);
+
+router.get(
+  '/private/viewCourse/:courseId',
+  courseController.getSingleCourseForPaidView
+);
+
+router.get(
   '/getAndEditCourse/:courseId',
   requireInstructor,
   courseController.getSingleCourseForInstructorEdit

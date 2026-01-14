@@ -27,6 +27,16 @@ const getSingleCourseForInstructorView = catchAsync(async (req, res): Promise<vo
   ResponseHandler.ok(res, 'Course fetched successfully for instructor view!', result);
 });
 
+const getSingleCourseForPublicView = catchAsync(async (req, res): Promise<void> => {
+  const result = await courseService.getSingleCourseForPublicView(req);
+  ResponseHandler.ok(res, 'Course fetched successfully for Public view!', result);
+});
+
+const getSingleCourseForPaidView = catchAsync(async (req, res): Promise<void> => {
+  const result = await courseService.getSingleCourseForPaidView(req);
+  ResponseHandler.ok(res, 'Course fetched successfully for Paid view!', result);
+});
+
 const getSingleCourseForInstructorEdit = catchAsync(async (req, res): Promise<void> => {
   const result = await courseService.getSingleCourseForInstructorEdit(req);
   ResponseHandler.ok(res, 'Course fetched successfully for instructor edit!', result);
@@ -139,6 +149,8 @@ export const courseController = {
   getCourseTags,
   createFileToBunny,
   getSingleCourseForInstructorView,
+  getSingleCourseForPublicView,
+  getSingleCourseForPaidView,
   getSingleCourseForInstructorEdit,
   deleteVideo,
   getVideo,
