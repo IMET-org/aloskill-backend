@@ -1,7 +1,13 @@
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
 import { executeDbOperation } from '@/config/database.js';
-import { ApplicationStatus, CourseStatus, InstructorRole, QuestionType, UserStatus } from '@prisma/client';
+import {
+  ApplicationStatus,
+  CourseStatus,
+  InstructorRole,
+  QuestionType,
+  UserStatus,
+} from '@prisma/client';
 import crypto from 'crypto';
 import { type Request } from 'express';
 import { config } from '../../config/env.js';
@@ -618,7 +624,7 @@ const getAllCoursesForPublic = async () => {
     return await prisma.course.findMany({
       where: {
         status: CourseStatus.PUBLISHED,
-        deletedAt: null
+        deletedAt: null,
       },
       orderBy: [{ createdAt: 'desc' }],
       select: {
@@ -632,6 +638,12 @@ const getAllCoursesForPublic = async () => {
         category: {
           select: {
             name: true,
+          },
+        },
+        createdBy: {
+          select: {
+            displayName: true,
+            user: { select: { avatarUrl: true } },
           },
         },
         courseInstructors: {

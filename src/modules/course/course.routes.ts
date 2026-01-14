@@ -4,7 +4,11 @@ import express from 'express';
 import multer from 'multer';
 import { requireInstructor } from '../../middleware/auth.js';
 import { courseController } from './course.controller.js';
-import { CreateCourseSchema, GetAndDeleteVideoSchema, GetSecureVideoToken } from './course.validation.js';
+import {
+  CreateCourseSchema,
+  GetAndDeleteVideoSchema,
+  GetSecureVideoToken,
+} from './course.validation.js';
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -34,7 +38,7 @@ router.patch(
 
 router.get('/allCourses', requireInstructor, courseController.getAllCoursesForInstructor);
 
-router.get('/public/courses', courseController.getAllCoursesForPublic);
+router.get('/public/allCourses', courseController.getAllCoursesForPublic);
 
 router.get(
   '/course/:courseId',
@@ -72,11 +76,25 @@ router.post(
   courseController.createFileToBunny
 );
 
-router.get('/get-video', requireInstructor, validate(GetAndDeleteVideoSchema),courseController.getVideo);
+router.get(
+  '/get-video',
+  requireInstructor,
+  validate(GetAndDeleteVideoSchema),
+  courseController.getVideo
+);
 
-router.post('/get-video-url', requireInstructor, validate(GetSecureVideoToken),courseController.getSecureVideoToken);
+router.post(
+  '/get-video-url',
+  requireInstructor,
+  validate(GetSecureVideoToken),
+  courseController.getSecureVideoToken
+);
 
-router.delete('/delete-video', requireInstructor, validate(GetAndDeleteVideoSchema),courseController.deleteVideo);
-
+router.delete(
+  '/delete-video',
+  requireInstructor,
+  validate(GetAndDeleteVideoSchema),
+  courseController.deleteVideo
+);
 
 export const CourseRoutes = router;
