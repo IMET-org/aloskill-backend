@@ -4,8 +4,12 @@ import { courseService } from './course.service.js';
 
 const createCourse = catchAsync(async (req, res): Promise<void> => {
   const result = await courseService.createCourse(req);
-
   ResponseHandler.ok(res, 'Course Created Successfully!', result);
+});
+
+const updateCourse = catchAsync(async (req, res): Promise<void> => {
+  const result = await courseService.updateCourse(req);
+  ResponseHandler.ok(res, 'Course Updated Successfully!', result);
 });
 
 const getAllCoursesForInstructor = catchAsync(async (req, res): Promise<void> => {
@@ -13,14 +17,29 @@ const getAllCoursesForInstructor = catchAsync(async (req, res): Promise<void> =>
   ResponseHandler.ok(res, 'All Courses Fetched Successfully!', result);
 });
 
+const getAllCoursesForPublic = catchAsync(async (req, res): Promise<void> => {
+  const result = await courseService.getAllCoursesForPublic(req);
+  ResponseHandler.ok(res, 'All Courses Fetched Successfully for Public view!', result);
+});
+
 const getSingleCourseForInstructorView = catchAsync(async (req, res): Promise<void> => {
   const result = await courseService.getSingleCourseForInstructorView(req);
-  ResponseHandler.ok(res, 'Course fetched successfully!', result);
+  ResponseHandler.ok(res, 'Course fetched successfully for instructor view!', result);
+});
+
+const getSingleCourseForPublicView = catchAsync(async (req, res): Promise<void> => {
+  const result = await courseService.getSingleCourseForPublicView(req);
+  ResponseHandler.ok(res, 'Course fetched successfully for Public view!', result);
+});
+
+const getSingleCourseForPaidView = catchAsync(async (req, res): Promise<void> => {
+  const result = await courseService.getSingleCourseForPaidView(req);
+  ResponseHandler.ok(res, 'Course fetched successfully for Paid view!', result);
 });
 
 const getSingleCourseForInstructorEdit = catchAsync(async (req, res): Promise<void> => {
   const result = await courseService.getSingleCourseForInstructorEdit(req);
-  ResponseHandler.ok(res, 'Course fetched successfully!', result);
+  ResponseHandler.ok(res, 'Course fetched successfully for instructor edit!', result);
 });
 
 const getCategories = catchAsync(async (req, res): Promise<void> => {
@@ -33,9 +52,9 @@ const checkCourseSlugAvailability = catchAsync(async (req, res): Promise<void> =
   const isAvailable = await courseService.isCourseSlugAvailable(slug);
 
   if (isAvailable) {
-    ResponseHandler.ok(res, 'Course slug is available', {canProceed: true});
+    ResponseHandler.ok(res, 'Course slug is available', { canProceed: true });
   } else {
-    ResponseHandler.ok(res, 'Course slug is already taken', {canProceed: false});
+    ResponseHandler.ok(res, 'Course slug is already taken', { canProceed: false });
   }
 });
 
@@ -95,15 +114,45 @@ const createFileToBunny = catchAsync(async (req, res): Promise<void> => {
   ResponseHandler.ok(res, 'File created in bunny storage', result);
 });
 
+const getVideo = catchAsync(async (req, res): Promise<void> => {
+  const result = await courseService.getVideo(req);
+  if (result) {
+    ResponseHandler.ok(res, 'Video fetched successfully');
+  } else {
+    ResponseHandler.badRequest(res, 'Something went wrong while fetching video!');
+  }
+});
+
+const getSecureVideoToken = catchAsync((req, res): void => {
+  const result = courseService.getSecureVideoToken(req);
+  ResponseHandler.ok(res, 'token generated successfully!', result);
+});
+
+const deleteVideo = catchAsync(async (req, res): Promise<void> => {
+  const result = await courseService.deleteVideo(req);
+  if (result) {
+    ResponseHandler.ok(res, 'Video deleted successfully');
+  } else {
+    ResponseHandler.badRequest(res, 'Something went wrong while deleting video!');
+  }
+});
+
 export const courseController = {
   getBunnySignature,
   createCourse,
+  updateCourse,
   getAllCoursesForInstructor,
+  getAllCoursesForPublic,
   getCategories,
   checkCourseSlugAvailability,
   getCourseInstructors,
   getCourseTags,
   createFileToBunny,
   getSingleCourseForInstructorView,
-  getSingleCourseForInstructorEdit
+  getSingleCourseForPublicView,
+  getSingleCourseForPaidView,
+  getSingleCourseForInstructorEdit,
+  deleteVideo,
+  getVideo,
+  getSecureVideoToken,
 };

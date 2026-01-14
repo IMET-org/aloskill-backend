@@ -4,7 +4,11 @@ import express from 'express';
 import multer from 'multer';
 import { requireInstructor } from '../../middleware/auth.js';
 import { courseController } from './course.controller.js';
-import { CreateCourseSchema } from './course.validation.js';
+import {
+  CreateCourseSchema,
+  GetAndDeleteVideoSchema,
+  GetSecureVideoToken,
+} from './course.validation.js';
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -24,27 +28,49 @@ router.post(
   validate(CreateCourseSchema),
   courseController.createCourse
 );
+
+router.patch(
+  '/editOrUpdate-course',
+  requireInstructor,
+  validate(CreateCourseSchema),
+  courseController.updateCourse
+);
+
 router.get('/allCourses', requireInstructor, courseController.getAllCoursesForInstructor);
+
+router.get('/public/allCourses', courseController.getAllCoursesForPublic);
+
 router.get(
   '/course/:courseId',
   requireInstructor,
   courseController.getSingleCourseForInstructorView
 );
+
+router.get('/public/viewCourse/:courseId', courseController.getSingleCourseForPublicView);
+
+router.get('/private/viewCourse/:courseId', courseController.getSingleCourseForPaidView);
+
 router.get(
   '/getAndEditCourse/:courseId',
   requireInstructor,
   courseController.getSingleCourseForInstructorEdit
 );
+
 router.get('/category', courseController.getCategories);
+
 router.get('/slug-check/:slug', courseController.checkCourseSlugAvailability);
+
 router.get(
   '/instructors',
   instructorQueryLimiter,
   requireInstructor,
   courseController.getCourseInstructors
 );
+
 router.get('/tags', instructorQueryLimiter, requireInstructor, courseController.getCourseTags);
+
 router.post('/bunny-signature', requireInstructor, courseController.getBunnySignature);
+
 router.post(
   '/file-upload',
   requireInstructor,
@@ -52,6 +78,27 @@ router.post(
     upload.single('file')(req, res, next);
   },
   courseController.createFileToBunny
+);
+
+router.get(
+  '/get-video',
+  requireInstructor,
+  validate(GetAndDeleteVideoSchema),
+  courseController.getVideo
+);
+
+router.post(
+  '/get-video-url',
+  requireInstructor,
+  validate(GetSecureVideoToken),
+  courseController.getSecureVideoToken
+);
+
+router.delete(
+  '/delete-video',
+  requireInstructor,
+  validate(GetAndDeleteVideoSchema),
+  courseController.deleteVideo
 );
 
 export const CourseRoutes = router;
