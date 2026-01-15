@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
 import { executeDbOperation } from '@/config/database.js';
-import { ApplicationStatus, CourseStatus, QuestionType, UserStatus } from '@prisma/client';
+import { ApplicationStatus, CourseLevel, CourseStatus, Language, QuestionType, UserStatus } from '@prisma/client';
 import crypto from 'crypto';
 import { type Request } from 'express';
 import { config } from '../../config/env.js';
@@ -619,9 +619,21 @@ const getAllCoursesForPublic = async (req: Request) => {
     return await prisma.course.findMany({
       where: {
         status: CourseStatus.PUBLISHED,
-        category: { ...(category && { name: category as string }) },
         deletedAt: null,
+        ...(category && { category: { name: category as string } }),
+        ...(language && {
+          language: language === "bangla"? Language.BANGLA: Language.ENGLISH
+        }),
+        ...(level && {
+          level: level === "intermediate" ? CourseLevel.INTERMEDIATE
+              : level === "beginner" ? CourseLevel.BEGINNER
+              : level === "advanced" ? CourseLevel.ADVANCED
+              : undefined
+        }),
         ...(isHome && { ratingAverage: { gte: 2 } }),
+        ...(rating && { ratingAverage: { gte: Number(rating) } }),
+        ...(priceMin ? [{ discountPrice: { gte: Number(priceMin) } }] : []),
+        ...(priceMax ? [{ discountPrice: { lte: Number(priceMax) } }] : []),
       },
       orderBy: [{ createdAt: 'desc' }],
       select: {
