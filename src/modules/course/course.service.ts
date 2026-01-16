@@ -1,7 +1,14 @@
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
 import { executeDbOperation } from '@/config/database.js';
-import { ApplicationStatus, CourseLevel, CourseStatus, Language, QuestionType, UserStatus } from '@prisma/client';
+import {
+  ApplicationStatus,
+  CourseLevel,
+  CourseStatus,
+  Language,
+  QuestionType,
+  UserStatus,
+} from '@prisma/client';
 import crypto from 'crypto';
 import { type Request } from 'express';
 import { config } from '../../config/env.js';
@@ -622,18 +629,26 @@ const getAllCoursesForPublic = async (req: Request) => {
         deletedAt: null,
         ...(category && { category: { name: category as string } }),
         ...(language && {
-          language: language === "bangla"? Language.BANGLA: Language.ENGLISH
+          language: language === 'bangla' ? Language.BANGLA : Language.ENGLISH,
         }),
         ...(level && {
-          level: level === "intermediate" ? CourseLevel.INTERMEDIATE
-              : level === "beginner" ? CourseLevel.BEGINNER
-              : level === "advanced" ? CourseLevel.ADVANCED
-              : undefined
+          level:
+            level === 'intermediate'
+              ? CourseLevel.INTERMEDIATE
+              : level === 'beginner'
+                ? CourseLevel.BEGINNER
+                : level === 'advanced'
+                  ? CourseLevel.ADVANCED
+                  : undefined,
         }),
         ...(isHome && { ratingAverage: { gte: 2 } }),
         ...(rating && { ratingAverage: { gte: Number(rating) } }),
-        ...(priceMin ? [{ discountPrice: { gte: Number(priceMin) } }] : []),
-        ...(priceMax ? [{ discountPrice: { lte: Number(priceMax) } }] : []),
+        ...((priceMin ?? priceMax) && {
+          originalPrice: {
+            ...(priceMin && { gte: Number(priceMin) }),
+            ...(priceMax && { lte: Number(priceMax) }),
+          },
+        }),
       },
       orderBy: [{ createdAt: 'desc' }],
       select: {
@@ -699,6 +714,7 @@ const getSingleCourseForPublicView = async (req: Request) => {
       select: {
         title: true,
         description: true,
+        thumbnailUrl: true,
         trailerUrl: true,
         createdAt: true,
         updatedAt: true,
@@ -706,6 +722,7 @@ const getSingleCourseForPublicView = async (req: Request) => {
         language: true,
         originalPrice: true,
         discountPrice: true,
+        discountPercent: true,
         isDiscountActive: true,
         ratingAverage: true,
         ratingCount: true,
@@ -718,8 +735,9 @@ const getSingleCourseForPublicView = async (req: Request) => {
             instructor: {
               select: {
                 ratingAverage: true,
-                skills: true,
                 displayName: true,
+                bio: true,
+                expertise: true,
                 ownedCourses: {
                   select: {
                     enrollmentCount: true,
@@ -824,10 +842,12 @@ const getSingleCourseForPublicView = async (req: Request) => {
 
     return {
       title: course.title,
-      desciption: course.description,
+      description: course.description,
+      thumbnailUrl: course.thumbnailUrl,
       trailerUrl: course.trailerUrl,
       originalPrice: course.originalPrice,
       discountPrice: course.discountPrice,
+      discountPercent: course.discountPercent,
       isDiscountActive: course.isDiscountActive,
       language: course.language,
       level: course.level,
@@ -839,9 +859,14 @@ const getSingleCourseForPublicView = async (req: Request) => {
       category: course.category?.name,
       courseInstructors: course.courseInstructors.map(i => ({
         instructorId: i.instructorId,
+        bio:
+          i.instructor.bio.length >= 150
+            ? `${i.instructor.bio.substring(0, 150)}...`
+            : i.instructor.bio,
         rating: i.instructor.ratingAverage,
-        skills: i.instructor.skills.map(s => s.skill),
+        expertise: i.instructor.expertise,
         totalStudents: i.instructor.ownedCourses.reduce((a, b) => b.enrollmentCount + a, 0),
+        totalCourses: i.instructor.ownedCourses.length,
         displayName: i.instructor.displayName,
         avatarUrl: i.instructor.user.avatarUrl,
       })),
