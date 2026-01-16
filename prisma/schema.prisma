@@ -523,6 +523,7 @@ model Course {
   @@index([status])
   @@index([originalPrice])
   @@index([enrollmentCount])
+  @@index([discountEndDate])
   @@index([ratingAverage])
   @@index([categoryId])
   @@index([createdById, status, deletedAt, createdAt])

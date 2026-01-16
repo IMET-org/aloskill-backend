@@ -5,6 +5,7 @@ import {
   ApplicationStatus,
   CourseLevel,
   CourseStatus,
+  EnrollmentStatus,
   Language,
   QuestionType,
   UserStatus,
@@ -1368,6 +1369,48 @@ const getSingleCourseForInstructorEdit = async (req: Request) => {
   return formatCourseData(getCourseDetails);
 };
 
+const getCartCourses = async (req: Request) => {
+  const courseIds = req.body as string[];
+  if (courseIds.length === 0) {
+    throw new Error('Course Not Provided');
+  }
+
+  const getCourseDetails = await executeDbOperation(async prisma => {
+    return await prisma.course.findMany({
+      where: {
+        id: { in: courseIds },
+        status: CourseStatus.PUBLISHED,
+        deletedAt: null
+      },
+      select: {
+        id: true,
+        title: true,
+        originalPrice: true,
+        discountPrice: true,
+        thumbnailUrl: true,
+        category: {
+          select: {
+            name: true,
+          },
+        }
+      },
+    });
+  }, 'Get Specific Course Data for Cart');
+
+  if (getCourseDetails.length === 0) {
+    throw new Error('Course Not Found for Cart');
+  }
+
+  const formatCourseData = (courses: typeof getCourseDetails) => {
+    return courses.map(course => ({
+      ...course,
+      category: course.category?.name,
+      discountPrice: course.discountPrice ?? 0,
+    }));
+  };
+  return formatCourseData(getCourseDetails);
+};
+
 const getBunnySignature = async (req: Request) => {
   const { collectionName, fileName } = req.query as { collectionName: string; fileName: string };
   const apiKey = config.BUNNY_STREAM_API_KEY;
@@ -1547,6 +1590,7 @@ export const courseService = {
   getSingleCourseForPublicView,
   getSingleCourseForPaidView,
   getSingleCourseForInstructorEdit,
+  getCartCourses,
   deleteVideo,
   getVideo,
   getSecureVideoToken,
