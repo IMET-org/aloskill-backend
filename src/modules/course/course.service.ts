@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
 import { executeDbOperation } from '@/config/database.js';
-import { ApplicationStatus, CourseLevel, CourseStatus, Language, QuestionType, UserStatus } from '@prisma/client';
+import { ApplicationStatus, CourseLevel, CourseStatus, EnrollmentStatus, Language, QuestionType, UserStatus } from '@prisma/client';
 import crypto from 'crypto';
 import { type Request } from 'express';
 import { config } from '../../config/env.js';
@@ -880,14 +880,28 @@ const getSingleCourseForPublicView = async (req: Request) => {
 };
 
 const getSingleCourseForPaidView = async (req: Request) => {
+  const user = req.user;
+  if(!user.id){
+    throw new Error("User not authenticated");
+  };
+
   const courseId = req.params.courseId;
   if (!courseId) {
     throw new Error('Course Not Provided');
   }
 
   const getCourseDetails = await executeDbOperation(async prisma => {
-    return await prisma.course.findUnique({
-      where: { id: courseId, deletedAt: null },
+    return await prisma.course.findFirst({
+      where: {
+        id: courseId,
+        enrollments: {
+          some: {
+            userId: user.id,
+            status: EnrollmentStatus.COMPLETED,
+          }
+        },
+        deletedAt: null
+      },
       select: {
         title: true,
         createdAt: true,

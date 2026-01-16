@@ -52,6 +52,8 @@ const envSchema = z.object({
   BUNNY_STORAGE_ZONE: z.string().default(process.env.BUNNY_STORAGE_ZONE as string),
   BUNNY_STORAGE_ZONE_KEY: z.string().default(process.env.BUNNY_STORAGE_ZONE_KEY as string),
   BUNNY_PULL_ZONE: z.string().default(process.env.BUNNY_PULL_ZONE as string),
+  SSLCOMMERCE_STORE_ID: z.string().default(process.env.SSLCOMMERCE_STORE_ID as string),
+  SSLCOMMERCE_STORE_PASSWORD: z.string().default(process.env.SSLCOMMERCE_STORE_PASS as string),
 });
 
 export const config = envSchema.parse(process.env);
