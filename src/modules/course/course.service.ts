@@ -632,8 +632,7 @@ const getAllCoursesForPublic = async (req: Request) => {
         }),
         ...(isHome && { ratingAverage: { gte: 2 } }),
         ...(rating && { ratingAverage: { gte: Number(rating) } }),
-        ...(priceMin ? [{ discountPrice: { gte: Number(priceMin) } }] : []),
-        ...(priceMax ? [{ discountPrice: { lte: Number(priceMax) } }] : []),
+        ...((priceMin && priceMax) && { discountPrice: { gte: Number(priceMin), lte: Number(priceMax) } }),
       },
       orderBy: [{ createdAt: 'desc' }],
       select: {
