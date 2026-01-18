@@ -713,6 +713,7 @@ const getSingleCourseForPublicView = async (req: Request) => {
     return await prisma.course.findUnique({
       where: { id: courseId, deletedAt: null },
       select: {
+        id: true,
         title: true,
         description: true,
         thumbnailUrl: true,
@@ -725,6 +726,7 @@ const getSingleCourseForPublicView = async (req: Request) => {
         discountPrice: true,
         discountPercent: true,
         isDiscountActive: true,
+        discountEndDate: true,
         ratingAverage: true,
         ratingCount: true,
         enrollmentCount: true,
@@ -842,6 +844,7 @@ const getSingleCourseForPublicView = async (req: Request) => {
     const totalDurationInFormatted = `${hours}:${minutes.toString().padStart(2, '0')} mins`;
 
     return {
+      id: course.id,
       title: course.title,
       description: course.description,
       thumbnailUrl: course.thumbnailUrl,
@@ -849,6 +852,7 @@ const getSingleCourseForPublicView = async (req: Request) => {
       originalPrice: course.originalPrice,
       discountPrice: course.discountPrice,
       discountPercent: course.discountPercent,
+      discountEndDate: course.discountEndDate,
       isDiscountActive: course.isDiscountActive,
       language: course.language,
       level: course.level,
@@ -907,9 +911,9 @@ const getSingleCourseForPublicView = async (req: Request) => {
 
 const getSingleCourseForPaidView = async (req: Request) => {
   const user = req.user;
-  if(!user.id){
-    throw new Error("User not authenticated");
-  };
+  if (!user.id) {
+    throw new Error('User not authenticated');
+  }
 
   const courseId = req.params.courseId;
   if (!courseId) {
@@ -924,9 +928,9 @@ const getSingleCourseForPaidView = async (req: Request) => {
           some: {
             userId: user.id,
             status: EnrollmentStatus.COMPLETED,
-          }
+          },
         },
-        deletedAt: null
+        deletedAt: null,
       },
       select: {
         title: true,
@@ -1380,7 +1384,7 @@ const getCartCourses = async (req: Request) => {
       where: {
         id: { in: courseIds },
         status: CourseStatus.PUBLISHED,
-        deletedAt: null
+        deletedAt: null,
       },
       select: {
         id: true,
@@ -1392,7 +1396,7 @@ const getCartCourses = async (req: Request) => {
           select: {
             name: true,
           },
-        }
+        },
       },
     });
   }, 'Get Specific Course Data for Cart');
