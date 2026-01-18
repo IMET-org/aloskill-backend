@@ -118,7 +118,7 @@ export const requireInstructor = authenticate({
 });
 
 export const requireStudent = authenticate({
-  roles: ['student', 'instructor', 'admin', 'superadmin'],
+  roles: ['STUDENT', 'INSTRUCTOR', 'ADMIN'],
   strategy: 'any',
 });
 
