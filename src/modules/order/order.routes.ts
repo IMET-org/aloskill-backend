@@ -9,6 +9,7 @@ router.use(generalLimiter);
 
 router.post(
   '/create-payment',
+  requireStudent,
   orderController.createPayment
 );
 

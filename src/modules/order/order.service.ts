@@ -2,9 +2,120 @@
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
 import { type Request } from 'express';
 import { config } from '../../config/env.js';
+import { executeDbOperation } from '../../config/database.js';
+import { ApplicationStatus, OrderStatus, PaymentProviders } from '@prisma/client';
+import { decryptPhoneNumber } from '../../utils/phoneNumber.js';
 
 const createPayment = async (req: Request) => {
-const { amount, orderId, user } = req.body;
+  const { courseIds, paymentMethod, user } = req.body;
+  console.log("user data : ", req.user);
+
+  if(!user) { throw new Error("Unauthorized"); }
+  if(!courseIds || !Array.isArray(courseIds) || courseIds.length === 0) {
+    throw new Error("No order IDs provided");
+  }
+
+  const createOrder = await executeDbOperation(async (prisma) => {
+    return await prisma.$transaction(async (tx) => {
+      const userData = await tx.user.findUnique({
+        where: {
+          id: user,
+          deletedAt: null
+        },
+        select: {
+          id: true,
+          email: true,
+          studentProfile: {
+            select: {
+              encryptedPhone:true,
+            }
+          },
+          instructorProfile: {
+            where: {
+              deletedAt: null,
+              status: ApplicationStatus.APPROVED
+             },
+            select: {
+              encryptedPhone:true,
+              city:true,
+              address:true,
+            }
+          }
+        }
+      });
+
+      if (!userData) {
+        throw new Error("User not found");
+      }
+      if(!userData.studentProfile && !userData.instructorProfile) {
+        throw new Error("User profile not found");
+      }
+      const encryptedStudentPhone = userData.studentProfile ? userData.studentProfile.encryptedPhone : "";
+      const encryptedInstructorPhone= userData.instructorProfile ? userData.instructorProfile.encryptedPhone : "";
+
+      const phoneNumber = decryptPhoneNumber(
+        encryptedStudentPhone || encryptedInstructorPhone
+      );
+
+      const courses = await tx.course.findMany({
+        where: { id: { in: courseIds }, deletedAt: null },
+        select: { id: true, originalPrice: true, discountPrice: true, isDiscountActive: true }
+      });
+
+      if (courses.length !== courseIds.length) {
+        throw new Error("One or more courses not found");
+      }
+
+      let total = 0;
+      const orderItemsData = courses.map(course => {
+        const price = (course.isDiscountActive && course.discountPrice)
+                      ? course.discountPrice
+                      : course.originalPrice;
+        total += Number(price);
+        return {
+          courseId: course.id,
+          price,
+        };
+      });
+
+      return {
+        ...userData,
+        phoneNumber,
+        orderData: await tx.order.create({
+          data: {
+            userId: userData.id,
+            totalAmount: total,
+            status: OrderStatus.PENDING,
+            provider: PaymentProviders.SSLCommerce,
+            orderItems: {
+              create: orderItemsData
+            }
+          },
+          select: {
+            id: true,
+            totalAmount: true,
+            orderItems: {
+              select: {
+                course: {
+                  select: {
+                    title: true
+                  }
+                }
+              }
+            }
+          }
+        })
+      };
+    });
+  });
+  if(!createOrder.id) {
+    throw new Error("Failed to create order");
+  }
+  const orderId = createOrder.orderData.id;
+  const amount = createOrder.orderData.totalAmount.toString();
+  const userPhone = createOrder.phoneNumber;
+  const userEmail = createOrder.email;
+
   try {
     const url = "https://sandbox.sslcommerz.com/gwprocess/v4/api.php";
     const payload = new URLSearchParams({
@@ -17,23 +128,18 @@ const { amount, orderId, user } = req.body;
       fail_url: `${config.FRONTEND_URL}/payment/fail`,
       cancel_url: `${config.FRONTEND_URL}/payment/cancel`,
       ipn_url: `http://localhost:5000/api/v1/order/validate-ipn`,
-
-      multi_card_name: "qcash bkash",
-
-      cus_email: user.email,
-      cus_phone: user.phone,
-      cus_add1: "N/A",
-      cus_city: "Dhaka",
+      ...(paymentMethod ? { multi_card_name: paymentMethod } : {}),
+      cus_email: userEmail,
+      cus_phone: userPhone,
+      cus_add1: createOrder.instructorProfile ? createOrder.instructorProfile.address : "N/A",
+      cus_city: createOrder.instructorProfile ? createOrder.instructorProfile.city : "Dhaka",
       cus_country: "Bangladesh",
 
       shipping_method: "NO",
 
-      product_name: "Watch, Bag, Camera, Laptop, Mobile",
-      product_category: "Electronic or topup or bus ticket or air ticket",
-      product_profile: "general",
-
-      store_logo: "https://www.alamy.com/stock-photo/my-letter-logo-design.html?imgt=8",
-      store_banner: "https://www.alamy.com/stock-photo/my-letter-logo-design.html?imgt=8",
+      product_name: createOrder.orderData.orderItems.map(item => item.course.title).join(", "),
+      product_category: "Online Course",
+      product_profile: "non-physical-goods",
     });
 
     const response = await fetch(url, {
