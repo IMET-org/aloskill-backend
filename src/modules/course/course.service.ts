@@ -911,7 +911,7 @@ const getSingleCourseForPublicView = async (req: Request) => {
 
 const getSingleCourseForPaidView = async (req: Request) => {
   const user = req.user;
-  if (!user.id) {
+  if (!user.email) {
     throw new Error('User not authenticated');
   }
 
@@ -919,7 +919,7 @@ const getSingleCourseForPaidView = async (req: Request) => {
   if (!courseId) {
     throw new Error('Course Not Provided');
   }
-
+  console.log('course ID', courseId);
   const getCourseDetails = await executeDbOperation(async prisma => {
     return await prisma.course.findFirst({
       where: {

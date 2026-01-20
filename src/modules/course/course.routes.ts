@@ -2,7 +2,7 @@ import { generalLimiter, instructorQueryLimiter } from '@/middleware/security.js
 import { validate } from '@/middleware/validation.js';
 import express from 'express';
 import multer from 'multer';
-import { requireAuth, requireInstructor } from '../../middleware/auth.js';
+import { requireAuth, requireInstructor, requireStudent } from '../../middleware/auth.js';
 import { courseController } from './course.controller.js';
 import {
   CreateCourseSchema,
@@ -50,7 +50,11 @@ router.get('/public/viewCourse/:courseId', courseController.getSingleCourseForPu
 
 router.post('/get-cart-courses', requireAuth, courseController.getCartCourses);
 
-router.get('/private/viewCourse/:courseId', courseController.getSingleCourseForPaidView);
+router.get(
+  '/private/viewCourse/:courseId',
+  requireStudent,
+  courseController.getSingleCourseForPaidView
+);
 
 router.get(
   '/getAndEditCourse/:courseId',
