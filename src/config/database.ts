@@ -1,6 +1,12 @@
-import { PrismaClient, type Prisma } from '@prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
+import 'dotenv/config';
+import { PrismaClient, type Prisma } from '../generated/client/client.js';
+// import { type Prisma } from '../generated/client/client.js';
 
 // Type-safe Prisma client based on log configuration
+// type LoggedPrismaClient = PrismaClient<{
+//   log: ('query' | 'info' | 'warn' | 'error')[];
+// }>;
 type LoggedPrismaClient = PrismaClient<{
   log: ('query' | 'info' | 'warn' | 'error')[];
 }>;
@@ -12,11 +18,11 @@ type ConnectionState = 'disconnected' | 'connecting' | 'connected' | 'reconnecti
 interface DatabaseConfig {
   readonly log: Prisma.LogLevel[];
   readonly errorFormat: Prisma.ErrorFormat;
-  readonly datasources: {
-    db: {
-      url: string;
-    };
-  };
+  // readonly datasources: {
+  //   db: {
+  //     url: string;
+  //   };
+  // };
 }
 
 interface ConnectionOptions {
@@ -59,11 +65,11 @@ let healthCheckTimer: NodeJS.Timeout | null = null;
 const defaultConfig: DatabaseConfig = {
   log: ['error', 'warn', 'info', 'query'],
   errorFormat: 'pretty',
-  datasources: {
-    db: {
-      url: process.env.DATABASE_URL ?? '',
-    },
-  },
+  // datasources: {
+  //   db: {
+  //     url: process.env.DATABASE_URL ?? '',
+  //   },
+  // },
 };
 
 const defaultOptions: Required<ConnectionOptions> = {
@@ -186,12 +192,18 @@ const createPrismaClient = async (config: DatabaseConfig): Promise<LoggedPrismaC
       // Ignore disconnect errors during reconnection
     });
   }
-
+  if (!process.env.DATABASE_URL) {
+    throw new DatabaseConnectionError('DATABASE_URL is not defined', undefined, false);
+  }
+  const adapter = new PrismaPg({
+    connectionString: process.env.DATABASE_URL,
+  });
   // Create new client
   const client = new PrismaClient({
+    adapter,
     log: config.log,
     errorFormat: config.errorFormat,
-    datasources: config.datasources,
+    // datasources: config.datasources,
   }) as LoggedPrismaClient;
 
   // Setup event listeners

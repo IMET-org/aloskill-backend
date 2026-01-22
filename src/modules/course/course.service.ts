@@ -1,6 +1,9 @@
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
+import crypto from 'crypto';
+import { type Request } from 'express';
 import { executeDbOperation } from '../../config/database.js';
+import { config } from '../../config/env.js';
 import {
   ApplicationStatus,
   CourseLevel,
@@ -9,10 +12,7 @@ import {
   Language,
   QuestionType,
   UserStatus,
-} from '@prisma/client';
-import crypto from 'crypto';
-import { type Request } from 'express';
-import { config } from '../../config/env.js';
+} from '../../generated/client/client.js';
 import type { CreateCoursePayload } from './course.validation.js';
 
 const getCategories = async () => {
