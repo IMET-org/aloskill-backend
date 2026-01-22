@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
-import { executeDbOperation } from '@/config/database.js';
+import { executeDbOperation } from '../../config/database.js';
 import { ApplicationStatus, UserStatus } from '@prisma/client';
 import { type Request } from 'express';
 

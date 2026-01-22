@@ -1,8 +1,8 @@
 /* eslint-disable @typescript-eslint/no-unnecessary-condition */
-import type { DeviceInfo } from '@/types/deviceSessionStore.js';
 import type { RequestHandler } from 'express';
 import geoip from 'geoip-lite';
 import { UAParser } from 'ua-parser-js';
+import type { DeviceInfo } from '../types/deviceSessionStore.js';
 
 declare module 'express-serve-static-core' {
   interface Request {

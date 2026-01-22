@@ -6,7 +6,7 @@ import { sanitizeInput } from './middleware/validation.js';
 import router from './routes/index.js';
 import { logger } from './utils/logger.js';
 import { trackDevice } from './middleware/deviceTracker.js';
-import { trackActivity } from './middleware/activityTracker.js';
+// import { trackActivity } from './middleware/activityTracker.js';
 
 // Initialize the Express application
 const app = express();
@@ -37,7 +37,7 @@ app.use(sanitizeInput);
 
 // Global middleware for tracking device and activity
 app.use(trackDevice);
-app.use(trackActivity);
+// app.use(trackActivity);
 
 // Rate limiting
 app.use('/api/v1/', generalLimiter);

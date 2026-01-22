@@ -1,5 +1,5 @@
-import { generalLimiter, instructorQueryLimiter } from '@/middleware/security.js';
-import { validate } from '@/middleware/validation.js';
+import { generalLimiter, instructorQueryLimiter } from '../../middleware/security.js';
+import { validate } from '../../middleware/validation.js';
 import express from 'express';
 import multer from 'multer';
 import { requireAuth, requireInstructor, requireStudent } from '../../middleware/auth.js';

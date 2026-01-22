@@ -8,7 +8,7 @@ import { decryptPhoneNumber } from '../../utils/phoneNumber.js';
 
 const createPayment = async (req: Request) => {
   const { courseIds, paymentMethod, user } = req.body;
-  console.log('user data : ', req.user);
+  // console.log('user data : ', req.user);
 
   if (!user) {
     throw new Error('Unauthorized');

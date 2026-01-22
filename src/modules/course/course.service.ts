@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
-import { executeDbOperation } from '@/config/database.js';
+import { executeDbOperation } from '../../config/database.js';
 import {
   ApplicationStatus,
   CourseLevel,
@@ -1030,6 +1030,7 @@ const getSingleCourseForInstructorView = async (req: Request) => {
         title: true,
         createdAt: true,
         updatedAt: true,
+        description: true,
         level: true,
         language: true,
         views: true,
@@ -1168,6 +1169,7 @@ const getSingleCourseForInstructorView = async (req: Request) => {
       title: course.title,
       originalPrice: course.originalPrice,
       discountPrice: course.discountPrice,
+      objective: JSON.parse(course.description).objectives,
       isDiscountActive: course.isDiscountActive,
       currency: course.currency,
       enrollmentCount: course.enrollmentCount,

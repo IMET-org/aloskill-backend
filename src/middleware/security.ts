@@ -1,9 +1,9 @@
-import { config } from '@/config/env.js';
 import cors from 'cors';
 import type { Request, RequestHandler } from 'express';
 import rateLimit from 'express-rate-limit';
 import slowDown from 'express-slow-down';
 import helmet from 'helmet';
+import { config } from '../config/env.js';
 
 // Rate limiting configuration
 export const instructorQueryLimiter = rateLimit({

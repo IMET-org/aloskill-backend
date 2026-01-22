@@ -1,11 +1,11 @@
 /* eslint-disable @typescript-eslint/no-unnecessary-condition */
-import { MailService } from '@/emails/mailService.js';
-import resetPasswordTemplate from '@/emails/templates/resetPassword.js';
-import signupWelcomeTemplate from '@/emails/templates/signupWelcome.js';
-import catchAsync from '@/utils/asyncHandler.js';
-import JwtService from '@/utils/jwt.js';
-import ResponseHandler from '@/utils/response.js';
+import resetPasswordTemplate from '../../emails/templates/resetPassword.js';
+import signupWelcomeTemplate from '../../emails/templates/signupWelcome.js';
+import catchAsync from '../../utils/asyncHandler.js';
+import JwtService from '../../utils/jwt.js';
+import ResponseHandler from '../../utils/response.js';
 import { type Request, type Response } from 'express';
+import { MailService } from '../../emails/mailService.js';
 import { authService } from './auth.service.js';
 
 const loginUser = catchAsync(async (req, res): Promise<void> => {

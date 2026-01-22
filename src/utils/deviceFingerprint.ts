@@ -1,5 +1,5 @@
-import type { DeviceInfo } from '@/types/deviceSessionStore.js';
 import crypto from 'crypto';
+import type { DeviceInfo } from '../types/deviceSessionStore.js';
 
 export class DeviceFingerprint {
   static generate(fingerprintData: {

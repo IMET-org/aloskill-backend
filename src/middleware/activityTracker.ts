@@ -1,9 +1,9 @@
-/* eslint-disable @typescript-eslint/no-unnecessary-condition */
-import { DeviceService } from '@/modules/device/deviceService.js';
-import type { DeviceInfo } from '@/types/deviceSessionStore.js';
-import { DeviceFingerprint } from '@/utils/deviceFingerprint.js';
+// import { DeviceService } from '@/modules/device/deviceService.js';
+// import type { DeviceInfo } from '@/types/deviceSessionStore.js';
+import type { DeviceInfo } from '../types/deviceSessionStore.js';
+// import { DeviceFingerprint } from '@/utils/deviceFingerprint.js';
 import type { User } from '@prisma/client';
-import type { RequestHandler } from 'express';
+// import type { RequestHandler } from 'express';
 
 declare module 'express-serve-static-core' {
   export interface Request {
@@ -12,14 +12,14 @@ declare module 'express-serve-static-core' {
   }
 }
 
-const deviceService = new DeviceService();
+// const deviceService = new DeviceService();
 
-export const trackActivity: RequestHandler = (req, res, next) => {
-  if (req.user && req.deviceInfo) {
-    const deviceId = DeviceFingerprint.generateDeviceId(req.deviceInfo);
+// export const trackActivity: RequestHandler = (req, res, next) => {
+//   if (req.user && req.deviceInfo) {
+//     const deviceId = DeviceFingerprint.generateDeviceId(req.deviceInfo);
 
-    deviceService.updateLastActivity(req.user.id, deviceId).catch(console.error);
-  }
+//     deviceService.updateLastActivity(req.user.id, deviceId).catch(console.error);
+//   }
 
-  next();
-};
+//   next();
+// };

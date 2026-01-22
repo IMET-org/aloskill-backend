@@ -3,11 +3,11 @@
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
 /* eslint-disable require-await */
 
-import { executeDbOperation } from '@/config/database.js';
-import type { DeviceInfo } from '@/types/deviceSessionStore.js';
-import { DeviceFingerprint } from '@/utils/deviceFingerprint.js';
-import { hash, verifyHash } from '@/utils/hashing.js';
-import { encryptPhoneNumber } from '@/utils/phoneNumber.js';
+import { executeDbOperation } from '../../config/database.js';
+import type { DeviceInfo } from '../../types/deviceSessionStore.js';
+import { DeviceFingerprint } from '../../utils/deviceFingerprint.js';
+import { hash, verifyHash } from '../../utils/hashing.js';
+import { encryptPhoneNumber } from '../../utils/phoneNumber.js';
 import { UserRole, UserStatus } from '@prisma/client';
 import crypto from 'crypto';
 import { type Request } from 'express';

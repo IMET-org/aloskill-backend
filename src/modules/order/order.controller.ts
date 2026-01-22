@@ -1,5 +1,5 @@
-import catchAsync from '@/utils/asyncHandler.js';
-import ResponseHandler from '@/utils/response.js';
+import catchAsync from '../../utils/asyncHandler.js';
+import ResponseHandler from '../../utils/response.js';
 import { orderService } from './order.service.js';
 
 const createPayment = catchAsync(async (req, res): Promise<void> => {
@@ -14,5 +14,5 @@ const validateIPN = catchAsync(async (req, res): Promise<void> => {
 
 export const orderController = {
   createPayment,
-  validateIPN
+  validateIPN,
 };
