@@ -65,7 +65,7 @@ const registerStudent = catchAsync(async (req, res): Promise<void> => {
   if (user.email && emailVerificationToken) {
     await MailService.sendEmail(user.email, 'Welcome to Aloskill!', signupWelcomeTemplate, {
       name: user.displayName,
-      verificationLink: `http://localhost:3000/auth/verify-user?id=${user?.id}&token=${emailVerificationToken}`,
+      verificationLink: `${process.env.FRONTEND_URL}/auth/verify-user?id=${user?.id}&token=${emailVerificationToken}`,
     });
   }
 
@@ -88,7 +88,7 @@ const registerInstructor = catchAsync(async (req, res): Promise<void> => {
   if (emailVerificationToken) {
     await MailService.sendEmail(result.email, 'Welcome to Aloskill!', signupWelcomeTemplate, {
       name: result.displayName ?? 'AloSkill User',
-      verificationLink: `http://localhost:3000/auth/verify-user?id=${result.id}&token=${emailVerificationToken}`,
+      verificationLink: `${process.env.FRONTEND_URL}/auth/verify-user?id=${result.id}&token=${emailVerificationToken}`,
     });
   }
 
@@ -125,7 +125,7 @@ const resendVerificationEmail = catchAsync(async (req, res): Promise<void> => {
   // Send new verification email
   await MailService.sendEmail(email, 'Verify your email address', signupWelcomeTemplate, {
     name: displayName,
-    verificationLink: `http://localhost:3000/auth/verify-user?id=${id}&token=${emailVerificationToken}`,
+    verificationLink: `${process.env.FRONTEND_URL}/auth/verify-user?id=${id}&token=${emailVerificationToken}`,
   });
 
   ResponseHandler.ok(res, 'Verification email sent successfully', {
@@ -150,7 +150,7 @@ const forgotPassword = catchAsync(async (req, res): Promise<void> => {
 
     await MailService.sendEmail(email, 'click here to reset your password', resetPasswordTemplate, {
       name: displayName,
-      resetLink: `http://localhost:3000/auth/reset-password?id=${id}&token=${passwordResetToken}`,
+      resetLink: `${process.env.FRONTEND_URL}/auth/reset-password?id=${id}&token=${passwordResetToken}`,
     });
   }
   ResponseHandler.ok(res, 'Check your email for password reset link', {
