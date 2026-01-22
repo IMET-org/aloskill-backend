@@ -1,6 +1,6 @@
-import { AuthRoutes } from '@/modules/auth/auth.routes.js';
-import { CourseRoutes } from '@/modules/course/course.routes.js';
-import { UserRoutes } from '@/modules/user/user.routes.js';
+import { AuthRoutes } from '../modules/auth/auth.routes.js';
+import { CourseRoutes } from '../modules/course/course.routes.js';
+import { UserRoutes } from '../modules/user/user.routes.js';
 import express from 'express';
 import { OrderRoutes } from '../modules/order/order.routes.js';
 

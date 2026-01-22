@@ -1,5 +1,5 @@
-import { type ApiResponse, HttpStatus } from '@/types/shared.js';
 import type { Response } from 'express';
+import { type ApiResponse, HttpStatus } from '../types/shared.js';
 
 class ResponseHandler {
   private static send = <T>(

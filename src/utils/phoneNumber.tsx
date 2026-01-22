@@ -1,29 +1,44 @@
-import { config } from '@/config/env.js';
 import crypto from 'crypto';
+import { config } from '../config/env.js';
 
-const ENCRYPTION_KEY = Buffer.from(config.PHONE_KEY, 'hex');
+// const ENCRYPTION_KEY = Buffer.from(config.PHONE_KEY, 'hex');
 
 export function encryptPhoneNumber(plaintext: string): string {
-    const iv = crypto.randomBytes(16);
-    const cipher = crypto.createCipheriv('aes-256-gcm', ENCRYPTION_KEY, iv);
+  const secret = config.PHONE_KEY;
 
-    let encrypted = cipher.update(plaintext, 'utf8', 'hex');
-    encrypted += cipher.final('hex');
-    const tag = cipher.getAuthTag().toString('hex');
+  if (!secret) {
+    throw new Error('PHONE_SECRET missing');
+  }
 
-    return `${iv.toString('hex')}:${tag}:${encrypted}`;
+  const ENCRYPTION_KEY = Buffer.from(secret, 'hex');
+
+  const iv = crypto.randomBytes(16);
+  const cipher = crypto.createCipheriv('aes-256-gcm', ENCRYPTION_KEY, iv);
+
+  let encrypted = cipher.update(plaintext, 'utf8', 'hex');
+  encrypted += cipher.final('hex');
+  const tag = cipher.getAuthTag().toString('hex');
+
+  return `${iv.toString('hex')}:${tag}:${encrypted}`;
 }
 
 export function decryptPhoneNumber(ciphertext: string): string {
-    const [ivHex, tagHex, encryptedHex] = ciphertext.split(':');
-    const iv = Buffer.from(ivHex, 'hex');
-    const tag = Buffer.from(tagHex, 'hex');
+  const secret = config.PHONE_KEY;
 
-    const decipher = crypto.createDecipheriv('aes-256-gcm', ENCRYPTION_KEY, iv);
-    decipher.setAuthTag(tag);
+  if (!secret) {
+    throw new Error('PHONE_SECRET missing');
+  }
 
-    let decrypted = decipher.update(encryptedHex, 'hex', 'utf8');
-    decrypted += decipher.final('utf8');
+  const ENCRYPTION_KEY = Buffer.from(secret, 'hex');
+  const [ivHex, tagHex, encryptedHex] = ciphertext.split(':');
+  const iv = Buffer.from(ivHex, 'hex');
+  const tag = Buffer.from(tagHex, 'hex');
 
-    return decrypted;
+  const decipher = crypto.createDecipheriv('aes-256-gcm', ENCRYPTION_KEY, iv);
+  decipher.setAuthTag(tag);
+
+  let decrypted = decipher.update(encryptedHex, 'hex', 'utf8');
+  decrypted += decipher.final('utf8');
+
+  return decrypted;
 }

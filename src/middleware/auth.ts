@@ -1,12 +1,12 @@
 /* eslint-disable @typescript-eslint/prefer-optional-chain */
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
-import JwtService from '@/utils/jwt.js';
 import type { NextFunction, Request, RequestHandler, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import { config } from '../config/env.js';
+import JwtService from '../utils/jwt.js';
+import ResponseHandler from '../utils/response.js';
 import { InsufficientPermissionsError } from './errorHandler.js';
-import ResponseHandler from '@/utils/response.js';
 
 type RoleCheck = (userRole: string[], requiredRoles: string[]) => boolean;
 

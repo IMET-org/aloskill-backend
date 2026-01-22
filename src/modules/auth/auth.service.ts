@@ -3,14 +3,14 @@
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
 /* eslint-disable require-await */
 
-import { executeDbOperation } from '@/config/database.js';
-import type { DeviceInfo } from '@/types/deviceSessionStore.js';
-import { DeviceFingerprint } from '@/utils/deviceFingerprint.js';
-import { hash, verifyHash } from '@/utils/hashing.js';
-import { encryptPhoneNumber } from '@/utils/phoneNumber.js';
-import { UserRole, UserStatus } from '@prisma/client';
 import crypto from 'crypto';
 import { type Request } from 'express';
+import { executeDbOperation } from '../../config/database.js';
+import { UserRole, UserStatus } from '../../generated/client/client.js';
+import type { DeviceInfo } from '../../types/deviceSessionStore.js';
+import { DeviceFingerprint } from '../../utils/deviceFingerprint.js';
+import { hash, verifyHash } from '../../utils/hashing.js';
+import { encryptPhoneNumber } from '../../utils/phoneNumber.js';
 
 const REFRESH_TOKEN_TTL = 7 * 24 * 60 * 60 * 1000;
 

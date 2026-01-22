@@ -1,6 +1,9 @@
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
-import { executeDbOperation } from '@/config/database.js';
+import crypto from 'crypto';
+import { type Request } from 'express';
+import { executeDbOperation } from '../../config/database.js';
+import { config } from '../../config/env.js';
 import {
   ApplicationStatus,
   CourseLevel,
@@ -9,10 +12,7 @@ import {
   Language,
   QuestionType,
   UserStatus,
-} from '@prisma/client';
-import crypto from 'crypto';
-import { type Request } from 'express';
-import { config } from '../../config/env.js';
+} from '../../generated/client/client.js';
 import type { CreateCoursePayload } from './course.validation.js';
 
 const getCategories = async () => {
@@ -911,7 +911,7 @@ const getSingleCourseForPublicView = async (req: Request) => {
 
 const getSingleCourseForPaidView = async (req: Request) => {
   const user = req.user;
-  if (!user.id) {
+  if (!user.email) {
     throw new Error('User not authenticated');
   }
 
@@ -919,7 +919,7 @@ const getSingleCourseForPaidView = async (req: Request) => {
   if (!courseId) {
     throw new Error('Course Not Provided');
   }
-
+  console.log('course ID', courseId);
   const getCourseDetails = await executeDbOperation(async prisma => {
     return await prisma.course.findFirst({
       where: {
@@ -1030,6 +1030,7 @@ const getSingleCourseForInstructorView = async (req: Request) => {
         title: true,
         createdAt: true,
         updatedAt: true,
+        description: true,
         level: true,
         language: true,
         views: true,
@@ -1168,6 +1169,7 @@ const getSingleCourseForInstructorView = async (req: Request) => {
       title: course.title,
       originalPrice: course.originalPrice,
       discountPrice: course.discountPrice,
+      objective: JSON.parse(course.description).objectives,
       isDiscountActive: course.isDiscountActive,
       currency: course.currency,
       enrollmentCount: course.enrollmentCount,

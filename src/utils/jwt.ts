@@ -1,12 +1,12 @@
+import jwt from 'jsonwebtoken';
+import { config } from '../config/env.js';
 import {
   JwtError,
   JwtExpiredError,
   JwtInvalidError,
   JwtMissingError,
-} from '@/middleware/errorHandler.js';
-import type { JwtPayload, TokenOptions, TokenType } from '@/types/jwt.types.js';
-import jwt from 'jsonwebtoken';
-import { config } from '../config/env.js';
+} from '../middleware/errorHandler.js';
+import type { JwtPayload, TokenOptions, TokenType } from '../types/jwt.types.js';
 
 class JwtService {
   private static readonly SECRETS: Record<TokenType, string | undefined> = {

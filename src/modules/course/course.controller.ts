@@ -1,5 +1,5 @@
-import catchAsync from '@/utils/asyncHandler.js';
-import ResponseHandler from '@/utils/response.js';
+import catchAsync from '../../utils/asyncHandler.js';
+import ResponseHandler from '../../utils/response.js';
 import { courseService } from './course.service.js';
 
 const createCourse = catchAsync(async (req, res): Promise<void> => {

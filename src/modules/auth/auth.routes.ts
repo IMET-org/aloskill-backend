@@ -1,15 +1,15 @@
-import { authLimiter } from '@/middleware/security.js';
-import { validate } from '@/middleware/validation.js';
+import express from 'express';
+import { authLimiter } from '../../middleware/security.js';
+import { validate } from '../../middleware/validation.js';
 import {
   forgotSchema,
+  InstructorProfileSchema,
   loginSchema,
   registerSchema,
-  InstructorProfileSchema,
   resendVerificationEmailSchema,
   resetSchema,
   verifyUserSchema,
-} from '@/validations/auth.js';
-import express from 'express';
+} from '../../validations/auth.js';
 import { authController } from './auth.controller.js';
 
 const router = express.Router({ caseSensitive: true });

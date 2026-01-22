@@ -1,5 +1,5 @@
-import catchAsync from '@/utils/asyncHandler.js';
-import ResponseHandler from '@/utils/response.js';
+import catchAsync from '../../utils/asyncHandler.js';
+import ResponseHandler from '../../utils/response.js';
 import { userService } from './user.service.js';
 
 const getUserByEmail = catchAsync(async (req, res): Promise<void> => {
