@@ -1,7 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unnecessary-condition */
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
-/* eslint-disable require-await */
 
 import crypto from 'crypto';
 import { type Request } from 'express';
@@ -34,6 +33,8 @@ const LOGIN_USER_SELECT = {
       displayName: true,
     },
   },
+  emailVerificationTokenHash: true,
+  passwordResetTokenHash: true,
 };
 
 const buildUserProfile = (user: {
@@ -93,7 +94,7 @@ const loginUser = async (req: Request) => {
   }
 
   const user = await executeDbOperation(async prisma => {
-    return prisma.user.findUnique({
+    return await prisma.user.findUnique({
       where: { email: data.email },
       include: { sessions: { include: { refreshTokens: true } } },
     });
@@ -124,7 +125,7 @@ const loginUser = async (req: Request) => {
     const result = await executeDbOperation(async prisma => {
       const sessionExpiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
-      return prisma.$transaction(async tx => {
+      return await prisma.$transaction(async tx => {
         // Update user last login
         const updatedUser = await tx.user.update({
           where: { id: user.id },
@@ -242,11 +243,11 @@ const loginUser = async (req: Request) => {
       throw new Error(`Account locked. Try again after ${user.lockUntil.toLocaleTimeString()}`);
     }
 
-    const isPasswordValid = await verifyHash(data.password as string, user.password);
+    const isPasswordValid = await verifyHash(data.password as string, user.password as string);
 
     if (!isPasswordValid) {
       const updateUserFailedAttempt = await executeDbOperation(async prisma => {
-        return prisma.user.update({
+        return await prisma.user.update({
           where: {
             id: user.id,
           },
@@ -282,7 +283,7 @@ const loginUser = async (req: Request) => {
     const result = await executeDbOperation(async prisma => {
       const sessionExpiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
-      return prisma.$transaction(async tx => {
+      return await prisma.$transaction(async tx => {
         // Update user last login
         const updatedUser = await tx.user.update({
           where: { id: user.id },
@@ -407,7 +408,7 @@ const registerStudent = async (req: Request) => {
   const { refreshToken, hashedToken, expiresAt } = generateRefreshToken();
 
   const existingUser = await executeDbOperation(async prisma => {
-    return prisma.user.findUnique({
+    return await prisma.user.findUnique({
       where: {
         email: data.email,
       },
@@ -424,7 +425,7 @@ const registerStudent = async (req: Request) => {
       restData.phoneLastFour = phoneNumber.slice(-4);
 
       const user = await executeDbOperation(async prisma => {
-        return prisma.user.create({
+        return await prisma.user.create({
           data: {
             email,
             password: hashPassword,
@@ -461,7 +462,7 @@ const registerStudent = async (req: Request) => {
         restData.encryptedPhone = encryptedPhoneNumber;
         restData.phoneLastFour = phoneNumber.slice(-4);
 
-        return prisma.user.create({
+        return await prisma.user.create({
           data: {
             email,
             avatarUrl,
@@ -544,7 +545,7 @@ const registerStudent = async (req: Request) => {
         throw new Error('User already exists');
       }
       const updateUserWithGoogleID = await executeDbOperation(async prisma => {
-        return prisma.user.update({
+        return await prisma.user.update({
           where: {
             id: existingUser.id,
           },
@@ -578,7 +579,7 @@ const registerInstructor = async (req: Request) => {
   }
 
   const existingUser = await executeDbOperation(async prisma => {
-    return prisma.user.findUnique({
+    return await prisma.user.findUnique({
       where: {
         email: data.email,
       },
@@ -598,7 +599,7 @@ const registerInstructor = async (req: Request) => {
     restData.phoneLastFour = phoneNumber.slice(-4);
 
     const user = await executeDbOperation(async prisma => {
-      return prisma.user.create({
+      return await prisma.user.create({
         data: {
           email,
           password,
@@ -656,7 +657,7 @@ const registerInstructor = async (req: Request) => {
   restData.phoneLastFour = phoneNumber.slice(-4);
 
   const user = await executeDbOperation(async prisma => {
-    return prisma.user.update({
+    return await prisma.user.update({
       where: {
         email: data.email,
       },
@@ -702,7 +703,7 @@ const verifyUser = async (req: Request) => {
   }
 
   const user = await executeDbOperation(async prisma => {
-    return prisma.user.findUnique({
+    return await prisma.user.findUnique({
       where: {
         id,
       },
@@ -722,7 +723,7 @@ const verifyUser = async (req: Request) => {
         throw new Error('Link Expired');
       } else {
         const updateUser = await executeDbOperation(async prisma => {
-          return prisma.user.update({
+          return await prisma.user.update({
             where: {
               id,
             },
@@ -749,7 +750,7 @@ const resendVerificationEmail = async (req: Request) => {
   }
 
   const user = await executeDbOperation(async prisma => {
-    return prisma.user.findUnique({
+    return await prisma.user.findUnique({
       where: { email: email.toLowerCase() },
     });
   });
@@ -770,7 +771,7 @@ const resendVerificationEmail = async (req: Request) => {
   const verificationExpires = new Date(Date.now() + 12 * 60 * 60 * 1000);
 
   const updatedUser = await executeDbOperation(async prisma => {
-    return prisma.user.update({
+    return await prisma.user.update({
       where: { id: user.id },
       data: {
         emailVerificationTokenHash: verificationToken,
@@ -791,7 +792,7 @@ const forgotPassword = async (req: Request) => {
   const { email } = req.body;
 
   const user = await executeDbOperation(async prisma => {
-    return prisma.user.findUnique({
+    return await prisma.user.findUnique({
       where: {
         email,
       },
@@ -812,7 +813,7 @@ const forgotPassword = async (req: Request) => {
       const refreshToken = crypto.randomBytes(64).toString('hex');
 
       const forgotPasswordUser = await executeDbOperation(async prisma => {
-        return prisma.user.update({
+        return await prisma.user.update({
           where: {
             id: user.id,
           },
@@ -836,7 +837,7 @@ const resetPassword = async (req: Request) => {
   const { id, token } = req.query;
 
   const user = await executeDbOperation(async prisma => {
-    return prisma.user.findUnique({
+    return await prisma.user.findUnique({
       where: {
         id: id as string,
       },
@@ -857,7 +858,7 @@ const resetPassword = async (req: Request) => {
     } else {
       const hashedConfirmPassword = await hash(confirmPassword as string);
       const updatedUser = await executeDbOperation(async prisma => {
-        return prisma.user.update({
+        return await prisma.user.update({
           where: {
             id: user.id,
           },
@@ -879,7 +880,7 @@ const changePassword = async (req: Request) => {
   const { id, token, oldPassword, newPassword } = req.body;
 
   const user = await executeDbOperation(async prisma => {
-    return prisma.user.findUnique({
+    return await prisma.user.findUnique({
       where: {
         id: id as string,
       },
@@ -904,7 +905,7 @@ const changePassword = async (req: Request) => {
       } else {
         const hashedNewPassword = await hash(newPassword as string);
         const updatedUser = await executeDbOperation(async prisma => {
-          return prisma.user.update({
+          return await prisma.user.update({
             where: {
               id: user.id,
             },
@@ -933,7 +934,7 @@ const logoutCurrentDevice = async (req: Request) => {
   const hashedToken = hashRefreshToken(refreshToken);
 
   const session = await executeDbOperation(async prisma => {
-    return prisma.userSession.findFirst({
+    return await prisma.userSession.findFirst({
       where: { refreshTokens: { some: { token: hashedToken } } },
       include: { refreshTokens: true },
     });
@@ -1008,7 +1009,7 @@ const logoutAllDevices = async (req: Request) => {
 
   // === 3️⃣ Find session and associated user
   const session = await executeDbOperation(async prisma => {
-    return prisma.userSession.findFirst({
+    return await prisma.userSession.findFirst({
       where: { refreshTokens: { some: { token: hashedToken, revoked: false } } },
       select: { id: true, userId: true },
     });
@@ -1020,7 +1021,7 @@ const logoutAllDevices = async (req: Request) => {
 
   // === 4️⃣ Revoke all refresh tokens + deactivate all user sessions
   const [revokedTokens, updatedSessions] = await executeDbOperation(async prisma => {
-    return prisma.$transaction([
+    return await prisma.$transaction([
       prisma.refreshToken.updateMany({
         where: {
           // sessionId: session.id,
@@ -1081,7 +1082,7 @@ const refreshAccessToken = async (req: Request) => {
   // Check if expired or revoked
   if (existingToken.revoked) {
     await executeDbOperation(async prisma => {
-      return prisma.userSession.update({
+      return await prisma.userSession.update({
         where: { id: existingToken.sessionId as string },
         data: { isActive: false },
       });

@@ -8,7 +8,6 @@ import { decryptPhoneNumber } from '../../utils/phoneNumber.js';
 
 const createPayment = async (req: Request) => {
   const { courseIds, paymentMethod, user } = req.body;
-  // console.log('user data : ', req.user);
 
   if (!user) {
     throw new Error('Unauthorized');
@@ -59,7 +58,7 @@ const createPayment = async (req: Request) => {
         ? userData.instructorProfile.encryptedPhone
         : '';
 
-      const phoneNumber = decryptPhoneNumber(encryptedStudentPhone || encryptedInstructorPhone);
+      const phoneNumber = decryptPhoneNumber(encryptedStudentPhone as string || encryptedInstructorPhone as string);
       console.log('phn', phoneNumber);
       const courses = await tx.course.findMany({
         where: { id: { in: courseIds }, deletedAt: null },
