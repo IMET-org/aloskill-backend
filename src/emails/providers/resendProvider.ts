@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
-import { config } from '@/config/env.js';
 import { Resend } from 'resend';
+import { config } from '../../config/env.js';
 import type { EmailOptions, IMailProvider } from '../../types/mail.js';
 
 const resendClient = new Resend(config.RESEND_API_KEY);

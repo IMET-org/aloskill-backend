@@ -3,8 +3,18 @@ import type { Request, RequestHandler } from 'express';
 import rateLimit from 'express-rate-limit';
 import slowDown from 'express-slow-down';
 import helmet from 'helmet';
+import { config } from '../config/env.js';
 
 // Rate limiting configuration
+export const instructorQueryLimiter = rateLimit({
+  windowMs: 1000,
+  max: 3,
+  message: {
+    error: 'Too many Instructor Searches',
+    message: 'Please try again later.',
+  },
+});
+
 export const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 100,
@@ -22,7 +32,7 @@ export const generalLimiter = rateLimit({
 // Stricter limits for authentication endpoints
 export const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 25,
+  max: 5,
   message: {
     error: 'Too many login attempts',
     message: 'Please try again in 15 minutes.',
@@ -37,14 +47,13 @@ export const speedLimiter = slowDown({
   delayMs: () => 100,
 });
 
-// Advanced CORS configuration
 export const corsOptions = {
-  origin: process.env.FRONTEND_URL ?? ['http://localhost:3000'],
+  origin: [config.FRONTEND_URL, 'http://localhost:3000/'],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-  exposedHeaders: ['RateLimit-Limit', 'RateLimit-Remaining', 'RateLimit-Reset'],
+  exposedHeaders: ['RateLimit-Limit', 'RateLimit-Remaining', 'RateLimit-Reset', 'Set-Cookie'],
   credentials: true,
-  maxAge: 600, // 10 minutes
+  maxAge: 600,
 };
 
 // Security headers configuration

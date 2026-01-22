@@ -19,7 +19,6 @@ const envSchema = z.object({
       message: 'Invalid HTTP(S) URL',
       protocol: /^https?$/i,
       hostname: /^([a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$/,
-      
     })
     .default('http://localhost:3000'),
   COOKIE_SECRET: z
@@ -46,6 +45,15 @@ const envSchema = z.object({
   REDIS_PORT: z.string().default(process.env.REDIS_PORT as string),
   REDIS_PASSWORD: z.string().default(process.env.REDIS_PASSWORD as string),
   RESEND_API_KEY: z.string().default(process.env.RESEND_API_KEY as string),
+  PHONE_KEY: z.string().default(process.env.PHONE_KEY as string),
+  BUNNY_STREAM_API_KEY: z.string().default(process.env.BUNNY_STREAM_API_KEY as string),
+  BUNNY_AUTHENTICATION_KEY: z.string().default(process.env.BUNNY_AUTHENTICATION_KEY as string),
+  BUNNY_VIDOE_LIBRARY_ID: z.string().default(process.env.BUNNY_VIDOE_LIBRARY_ID as string),
+  BUNNY_STORAGE_ZONE: z.string().default(process.env.BUNNY_STORAGE_ZONE as string),
+  BUNNY_STORAGE_ZONE_KEY: z.string().default(process.env.BUNNY_STORAGE_ZONE_KEY as string),
+  BUNNY_PULL_ZONE: z.string().default(process.env.BUNNY_PULL_ZONE as string),
+  SSLCOMMERCE_STORE_ID: z.string().default(process.env.SSLCOMMERCE_STORE_ID as string),
+  SSLCOMMERCE_STORE_PASSWORD: z.string().default(process.env.SSLCOMMERCE_STORE_PASS as string),
 });
 
 export const config = envSchema.parse(process.env);

@@ -16,9 +16,14 @@ export interface CookieConfig {
 
 // Default cookie options
 export const defaultCookieOptions: CookieOptions = {
+  // httpOnly: true,
+  // secure: process.env.NODE_ENV === 'production', // ✅ true in production, false in dev
+  // sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+  // path: '/',
+  // domain: process.env.NODE_ENV === 'production' ? '.aloskill.com' : undefined, // optional for prod
   httpOnly: true,
-  secure: config.NODE_ENV === 'production',
-  sameSite: config.NODE_ENV === 'production' ? 'strict' : 'lax',
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
   path: '/',
 };
 
@@ -59,6 +64,13 @@ class CookieService {
    */
   static setAuthCookies(res: Response, accessToken: string, refreshToken: string): void {
     this.setCookie(res, 'accessToken', accessToken, cookieConfig.access);
+    this.setCookie(res, 'refreshToken', refreshToken, cookieConfig.refresh);
+  }
+
+  /**
+   * Set refreshToken cookies (refresh)
+   */
+  static setRefreshCookie(res: Response, refreshToken: string): void {
     this.setCookie(res, 'refreshToken', refreshToken, cookieConfig.refresh);
   }
 
@@ -139,7 +151,7 @@ class CookieService {
     this.setCookie(res, name, value, {
       ...defaultCookieOptions,
       ...options,
-      secure: true,
+      secure: process.env.NODE_ENV === 'production' ? true : false,
       httpOnly: true,
     });
   }

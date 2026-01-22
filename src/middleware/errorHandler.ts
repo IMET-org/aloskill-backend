@@ -1,6 +1,6 @@
-import { config } from '@/config/env.js';
-import type { SafeZodIssue, ZIssueLike } from '@/types/errorHandler.types.js';
-import { HttpStatus } from '@/types/shared.js';
+import { config } from '../config/env.js';
+import type { SafeZodIssue, ZIssueLike } from '../types/errorHandler.types.js';
+import { HttpStatus } from '../types/shared.js';
 import { Prisma } from '@prisma/client';
 import type { ErrorRequestHandler, RequestHandler } from 'express';
 import { ZodError } from 'zod';
@@ -205,10 +205,17 @@ export const errorHandler: ErrorRequestHandler = (err, req, res, _next) => {
     });
   }
 
+  if (err.name === 'DatabaseQueryError') {
+    if (err.cause instanceof Prisma.PrismaClientValidationError) {
+      return ResponseHandler.badRequest(res, 'Invalid data provided for user creation');
+    }
+    return ResponseHandler.internalError(res, 'Database operation failed');
+  }
+
   // Unknown error (mask in production)
   const safeMessage =
     config.NODE_ENV === 'production'
-      ? 'Internal server errorrrrrrrrrr'
+      ? 'Internal server error'
       : err instanceof Error
         ? err.message
         : String(err);

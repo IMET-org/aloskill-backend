@@ -1,12 +1,12 @@
+import jwt from 'jsonwebtoken';
+import { config } from '../config/env.js';
 import {
   JwtError,
   JwtExpiredError,
   JwtInvalidError,
   JwtMissingError,
-} from '@/middleware/errorHandler.js';
-import type { JwtPayload, TokenOptions, TokenPair, TokenType } from '@/types/jwt.types.js';
-import jwt from 'jsonwebtoken';
-import { config } from '../config/env.js';
+} from '../middleware/errorHandler.js';
+import type { JwtPayload, TokenOptions, TokenType } from '../types/jwt.types.js';
 
 class JwtService {
   private static readonly SECRETS: Record<TokenType, string | undefined> = {
@@ -71,23 +71,6 @@ class JwtService {
       }
       throw new JwtInvalidError('Failed to verify token');
     }
-  }
-
-  /**
-   * Generate access and refresh token pair
-   */
-  static generateTokenPair(user: { email: string; role: string }): TokenPair {
-    const accessToken = this.generateToken(
-      { email: user.email, role: user.role },
-      { expiresIn: config.ACCESS_TOKEN_EXPIRY, type: 'ACCESS' }
-    );
-
-    const refreshToken = this.generateToken(
-      { email: user.email, role: user.role },
-      { expiresIn: config.REFRESH_TOKEN_EXPIRY, type: 'REFRESH' }
-    );
-
-    return { accessToken, refreshToken };
   }
 
   /**

@@ -13,6 +13,7 @@ import {
   isDatabaseConnected,
 } from './config/database.js';
 import { config } from './config/env.js';
+import './utils/cron.js';
 
 // Server state management
 let server: Server | null = null;

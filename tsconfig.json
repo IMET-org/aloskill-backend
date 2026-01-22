@@ -40,7 +40,11 @@
     "transpileOnly": true,
     "compilerOptions": {
       "module": "NodeNext",
-      "moduleResolution": "NodeNext"
+      "moduleResolution": "NodeNext",
+      "baseUrl": ".",
+      "paths": {
+        "@/*": ["src/*"]
+      }
     }
   }
 }

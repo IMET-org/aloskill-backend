@@ -1,4 +1,4 @@
-import type { NextFunction, Request, RequestHandler, Response } from 'express';
+import type { RequestHandler } from 'express';
 import xss from 'xss';
 import { ZodError, type ZodObject } from 'zod';
 import { AppError } from './errorHandler.js';
@@ -33,7 +33,7 @@ const isPlainObject = (value: unknown): value is Record<string, unknown> => {
 };
 
 // Alternative: More strict version that only sanitizes strings
-export const sanitizeInput = (req: Request, res: Response, next: NextFunction): void => {
+export const sanitizeInput: RequestHandler = (req, res, next) => {
   try {
     const sanitizeStringsInObject = (obj: Record<string, unknown>): void => {
       for (const [key, value] of Object.entries(obj)) {
