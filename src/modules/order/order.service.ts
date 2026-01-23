@@ -1,14 +1,13 @@
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
-import { ApplicationStatus, OrderStatus, PaymentProviders } from '@prisma/client';
 import { type Request } from 'express';
 import { executeDbOperation } from '../../config/database.js';
 import { config } from '../../config/env.js';
+import { ApplicationStatus, OrderStatus, PaymentProviders } from '../../generated/client/client.js';
 import { decryptPhoneNumber } from '../../utils/phoneNumber.js';
 
 const createPayment = async (req: Request) => {
   const { courseIds, paymentMethod, user } = req.body;
-  // console.log('user data : ', req.user);
 
   if (!user) {
     throw new Error('Unauthorized');

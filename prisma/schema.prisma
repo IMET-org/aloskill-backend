@@ -1,11 +1,16 @@
-generator client {
-  provider = "prisma-client-js"
-}
-
+// generator client {
+//   provider = "prisma-client-js"
+// }
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/client"
+  // previewFeatures = ["fullTextSearchPostgres", "driverAdapters"]
+}
+
 
 /// Enums
 enum UserRole {
@@ -246,6 +251,7 @@ model User {
   @@index([emailVerificationTokenHash])
   @@index([passwordResetTokenHash])
   @@index([id, deletedAt, status])
+  @@map("users")
 }
 
 model UserSession {
@@ -304,6 +310,7 @@ model UserSession {
   @@index([expiresAt])
   @@index([isCompromised])
   @@index([createdAt])
+  @@map("user_sessions")
 }
 
 model RefreshToken {
@@ -342,6 +349,7 @@ model UserRoleAssignment {
 
   @@unique([userId, role])
   @@index([userId, role])
+  @@map("user_role_assignments")
 }
 
 model Permission {
@@ -351,6 +359,7 @@ model Permission {
   roles       RolePermission[]
 
   @@index([name])
+  @@map("permissions")
 }
 
 model RolePermission {
@@ -364,6 +373,7 @@ model RolePermission {
   @@unique([role, permissionId])
   @@index([role])
   @@index([permissionId])
+  @@map("role_permissions")
 }
 
 /// Profiles
@@ -382,6 +392,7 @@ model StudentProfile {
 
   @@index([userId])
   @@index([displayName])
+  @@map("student_profiles")
 }
 
 model InstructorProfile {
@@ -449,6 +460,7 @@ model InstructorProfile {
   @@index([deletedAt])
   @@index([userId, status, deletedAt])
   @@index([displayName, status, deletedAt])
+  @@map("instructor_profiles")
 }
 
 model InstructorSkill {
@@ -458,6 +470,7 @@ model InstructorSkill {
   skill        String
 
   @@unique([instructorId, skill])
+  @@map("instructor_skills")
 }
 
 model SocialLink {
@@ -467,6 +480,8 @@ model SocialLink {
   platform  SocialPlatform
   url       String
   createdAt DateTime          @default(now())
+
+  @@map("social_links")
 }
 
 /// Courses & content
@@ -527,6 +542,8 @@ model Course {
   @@index([ratingAverage])
   @@index([categoryId])
   @@index([createdById, status, deletedAt, createdAt])
+
+  @@map("courses")
 }
 
 model CourseInstructor {
@@ -541,6 +558,8 @@ model CourseInstructor {
   @@unique([courseId, instructorId])
   @@index([courseId])
   @@index([instructorId])
+
+  @@map("course_instructors")
 }
 
 /// Module & Lesson
@@ -557,6 +576,8 @@ model Module {
 
   @@index([courseId])
   @@index([courseId, position])
+
+  @@map("modules")
 }
 
 model Lesson {
@@ -582,6 +603,8 @@ model Lesson {
 
   @@index([moduleId])
   @@index([moduleId, position])
+
+  @@map("lessons")
 }
 
 model LessonFile {
@@ -591,6 +614,8 @@ model LessonFile {
   lessonId  String
   lesson    Lesson   @relation(fields: [lessonId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
+
+  @@map("lesson_files")
 }
 
 model LessonDiscussion {
@@ -613,6 +638,8 @@ model LessonDiscussion {
   @@index([lessonId])
   @@index([createdById])
   @@index([lessonId, createdAt])
+
+  @@map("lesson_discussions")
 }
 
 model LessonComment {
@@ -643,6 +670,8 @@ model LessonComment {
   @@index([authorId])
   @@index([parentCommentId])
   @@index([discussionId, createdAt])
+
+  @@map("lesson_comments")
 }
 
 /// Enrollment & progress
@@ -676,6 +705,8 @@ model Enrollment {
   @@index([status])
   @@index([startedAt])
   @@index([status, startedAt])
+
+  @@map("enrollments")
 }
 
 model LessonProgress {
@@ -700,6 +731,8 @@ model LessonProgress {
   @@index([completed])
   @@index([userId, courseId])
   @@index([userId, completed, updatedAt])
+
+  @@map("lesson_progresses")
 }
 
 /// Reviews & ratings
@@ -721,6 +754,8 @@ model Review {
   @@index([rating])
   @@index([createdAt])
   @@index([courseId, rating, createdAt])
+
+  @@map("reviews")
 }
 
 //=== WISH LIST ===//
@@ -735,6 +770,8 @@ model Wishlist {
   createdAt DateTime @default(now())
 
   @@unique([userId, courseId])
+
+  @@map("wishlists")
 }
 
 //== ORDER ==//
@@ -756,6 +793,8 @@ model Order {
   @@index([status, createdAt])
   @@index([userId, createdAt, status])
   @@index([totalAmount])
+
+  @@map("orders")
 }
 
 model OrderItem {
@@ -774,6 +813,8 @@ model OrderItem {
   @@unique([orderId, courseId])
   @@index([orderId])
   @@index([courseId])
+
+  @@map("order_items")
 }
 
 /// Payments & payouts
@@ -803,6 +844,8 @@ model PaymentTransaction {
 
   @@index([courseId])
   @@index([userId, status, createdAt])
+
+  @@map("payment_transactions")
 }
 
 model Payout {
@@ -837,6 +880,8 @@ model Payout {
   @@index([payoutDate])
   @@index([instructorId, status])
   @@index([status, payoutDate])
+
+  @@map("payouts")
 }
 
 /// Categories & tags
@@ -854,6 +899,8 @@ model Category {
   @@index([slug])
   @@index([name])
   @@index([parentId])
+
+  @@map("categories")
 }
 
 model Tag {
@@ -864,6 +911,8 @@ model Tag {
 
   @@index([slug])
   @@index([name])
+
+  @@map("tags")
 }
 
 model CourseTag {
@@ -877,6 +926,8 @@ model CourseTag {
   @@unique([courseId, tagId])
   @@index([courseId])
   @@index([tagId])
+
+  @@map("course_tags")
 }
 
 /// Certificate
@@ -899,6 +950,8 @@ model Certificate {
   revokedAt     DateTime?
 
   @@index([issuedAt])
+
+  @@map("certificates")
 }
 
 /// Notifications & audit
@@ -916,6 +969,8 @@ model Notification {
   @@index([userId, isRead, isArchived])
   @@index([userId, isArchived, createdAt])
   @@index([createdAt])
+
+  @@map("notifications")
 }
 
 // Quizzes
@@ -939,6 +994,8 @@ model Quiz {
   results   QuizResult[]
 
   @@index([lessonId])
+
+  @@map("quizzes")
 }
 
 model QuizQuestion {
@@ -959,6 +1016,8 @@ model QuizQuestion {
 
   @@index([quizId])
   @@index([quizId, position])
+
+  @@map("quiz_questions")
 }
 
 model QuestionOption {
@@ -974,6 +1033,8 @@ model QuestionOption {
   createdAt        DateTime @default(now())
 
   @@index([questionId])
+
+  @@map("question_options")
 }
 
 model QuizResult {
@@ -994,6 +1055,8 @@ model QuizResult {
   @@index([quizId, userId])
   @@index([userId, isPassed])
   @@index([submittedAt])
+
+  @@map("quiz_results")
 }
 
 model AuditLog {
@@ -1020,6 +1083,8 @@ model AuditLog {
   @@index([userId, timestamp])
   @@index([entityType, entityId, timestamp])
   @@index([action, timestamp])
+
+  @@map("audit_logs")
 }
 
 // === BASIC PLATFORM SETTINGS ===

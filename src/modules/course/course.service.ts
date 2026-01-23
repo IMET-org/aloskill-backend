@@ -1,6 +1,9 @@
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
+import crypto from 'crypto';
+import { type Request } from 'express';
 import { executeDbOperation } from '../../config/database.js';
+import { config } from '../../config/env.js';
 import {
   ApplicationStatus,
   CourseLevel,
@@ -9,10 +12,7 @@ import {
   Language,
   QuestionType,
   UserStatus,
-} from '@prisma/client';
-import crypto from 'crypto';
-import { type Request } from 'express';
-import { config } from '../../config/env.js';
+} from '../../generated/client/client.js';
 import type { CreateCoursePayload } from './course.validation.js';
 
 const getCategories = async () => {
@@ -821,7 +821,7 @@ const getSingleCourseForPublicView = async (req: Request) => {
         if (lesson.type === 'QUIZ') {
           totalDuration += lesson.duration ?? 0;
         }
-        totalFiles += lesson.files.length || 0;
+        totalFiles += lesson.files.length ?? 0;
       });
     });
 
@@ -830,7 +830,7 @@ const getSingleCourseForPublicView = async (req: Request) => {
       distribution[r.rating]++;
     });
 
-    const totalReviews = course.reviews.length || 1;
+    const totalReviews = course.reviews.length ?? 1;
     const ratingStats = Object.keys(distribution).map(star => {
       const starNum = Number(star);
       return {
@@ -1143,7 +1143,7 @@ const getSingleCourseForInstructorView = async (req: Request) => {
         if (lesson.type === 'QUIZ') {
           totalDuration += lesson.duration ?? 0;
         }
-        totalFiles += lesson.files.length || 0;
+        totalFiles += lesson.files.length;
       });
     });
 
@@ -1152,7 +1152,7 @@ const getSingleCourseForInstructorView = async (req: Request) => {
       distribution[r.rating]++;
     });
 
-    const totalReviews = course.reviews.length || 1;
+    const totalReviews = course.reviews.length;
     const ratingStats = Object.keys(distribution).map(star => {
       const starNum = Number(star);
       return {

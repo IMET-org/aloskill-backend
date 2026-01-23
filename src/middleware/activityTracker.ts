@@ -2,7 +2,7 @@
 // import type { DeviceInfo } from '@/types/deviceSessionStore.js';
 import type { DeviceInfo } from '../types/deviceSessionStore.js';
 // import { DeviceFingerprint } from '@/utils/deviceFingerprint.js';
-import type { User } from '@prisma/client';
+import type { User } from '../generated/client/client.js';
 // import type { RequestHandler } from 'express';
 
 declare module 'express-serve-static-core' {

@@ -1,9 +1,10 @@
 {
   "compilerOptions": {
-    "target": "ES2022",
-    "lib": ["ES2022"],
-    "module": "NodeNext",
-    "moduleResolution": "NodeNext",
+    "target": "ES2023",
+    "lib": ["ES2023"],
+    "module": "ESNext",
+    // "module": "NodeNext",
+    "moduleResolution": "bundler",
     "jsx": "react-jsx",
     "jsxImportSource": "react",
     "allowSyntheticDefaultImports": true,
@@ -11,7 +12,9 @@
     "resolveJsonModule": true,
 
     "outDir": "./dist",
-    "rootDir": "./src",
+    // "rootDir": "./src",
+    "rootDir": ".",
+    // "include": ["src", "prisma"],
     "removeComments": true,
     "declaration": true,
     "sourceMap": true,
@@ -32,8 +35,18 @@
     },
     "typeRoots": ["./node_modules/@types", "./src/types"]
   },
+  // "include": ["src/**/*"],
+  // "exclude": [
+  //   "node_modules",
+  //   "dist",
+  //   "logs",
+  //   "**/*.test.ts",
+  //   "**/*.spec.ts",
+  //   "prisma/**/*",
+  //   "prisma.config.ts"
+  // ],
   "include": ["src/**/*", "src", "src/types", "**/*.ts", "**/*.tsx"],
-  "exclude": ["node_modules", "dist", "logs", "**/*.test.ts", "**/*.spec.ts"],
+  "exclude": ["node_modules", "dist", "logs", "**/*.test.ts"],
   "ts-node": {
     "require": ["tsconfig-paths/register"],
     "files": true,
