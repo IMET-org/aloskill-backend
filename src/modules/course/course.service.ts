@@ -1143,7 +1143,7 @@ const getSingleCourseForInstructorView = async (req: Request) => {
         if (lesson.type === 'QUIZ') {
           totalDuration += lesson.duration ?? 0;
         }
-        totalFiles += lesson.files.length ?? 0;
+        totalFiles += lesson.files.length;
       });
     });
 
@@ -1152,7 +1152,7 @@ const getSingleCourseForInstructorView = async (req: Request) => {
       distribution[r.rating]++;
     });
 
-    const totalReviews = course.reviews.length ?? 1;
+    const totalReviews = course.reviews.length;
     const ratingStats = Object.keys(distribution).map(star => {
       const starNum = Number(star);
       return {
@@ -1169,7 +1169,7 @@ const getSingleCourseForInstructorView = async (req: Request) => {
       title: course.title,
       originalPrice: course.originalPrice,
       discountPrice: course.discountPrice,
-      objective: JSON.parse(course.description as string).objectives,
+      objective: JSON.parse(course.description).objectives,
       isDiscountActive: course.isDiscountActive,
       currency: course.currency,
       enrollmentCount: course.enrollmentCount,

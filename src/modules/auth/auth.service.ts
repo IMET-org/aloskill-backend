@@ -243,7 +243,7 @@ const loginUser = async (req: Request) => {
       throw new Error(`Account locked. Try again after ${user.lockUntil.toLocaleTimeString()}`);
     }
 
-    const isPasswordValid = await verifyHash(data.password as string, user.password as string);
+    const isPasswordValid = await verifyHash(data.password as string, user.password);
 
     if (!isPasswordValid) {
       const updateUserFailedAttempt = await executeDbOperation(async prisma => {

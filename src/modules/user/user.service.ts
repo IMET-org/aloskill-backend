@@ -169,7 +169,7 @@ const getSingleInstructor = async (req: Request) => {
 
     // Instructor Profile fields (flat)
     displayName: instructor.displayName,
-    ratingAverage: instructor.ratingAverage ? parseFloat(instructor.ratingAverage.toString() as string) : 0,
+    ratingAverage: instructor.ratingAverage ? parseFloat(instructor.ratingAverage.toString()) : 0,
     totalCourses: instructor.totalCourses,
     totalStudents: instructor.totalStudents,
     expertise: instructor.expertise,

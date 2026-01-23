@@ -58,7 +58,7 @@ const createPayment = async (req: Request) => {
         ? userData.instructorProfile.encryptedPhone
         : '';
 
-      const phoneNumber = decryptPhoneNumber(encryptedStudentPhone as string || encryptedInstructorPhone as string);
+      const phoneNumber = decryptPhoneNumber(encryptedStudentPhone || encryptedInstructorPhone);
       console.log('phn', phoneNumber);
       const courses = await tx.course.findMany({
         where: { id: { in: courseIds }, deletedAt: null },

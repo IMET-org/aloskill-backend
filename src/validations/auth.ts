@@ -76,7 +76,7 @@ export const InstructorProfileSchema = z.object({
     // == Professional Info
     qualifications: z
       .string()
-      .min(6, 'Qualifications must be more than 6 characters.')
+      .min(1, 'Qualifications must be more than 1 characters.')
       .max(100, `Qualifications cannot exceed 100 characters.`),
     experience: z
       .number({ error: 'Please enter your experience between 0 to 50' })
@@ -84,23 +84,17 @@ export const InstructorProfileSchema = z.object({
       .max(50)
       .default(0),
     expertise: z
-      .string({ error: 'Expertise should not be empty and should be atleast 3 charactors' })
-      .regex(
-        /^[A-Za-z\-,\s\.\/]+$/,
-        'expertise can only contain letters,space, dot , slash,hyphen characters.'
-      )
+      .string({ error: 'Expertise accept all characters except angle brackets (< >).' })
+      .regex(/^[^<>]/, 'Expertise accept all characters except angle brackets (< >).')
       .min(3)
       .max(100)
       .optional()
       .nullable(),
     currentOrg: z
       .string({
-        error: 'Current organization should not be empty and should be atleast 3 charactors',
+        error: 'Current organization accept all characters except angle brackets (< >).',
       })
-      .regex(
-        /^[A-Za-z\-,\s\.\/]+$/,
-        'Current Organization can only contain letters,space, dot , slash,hyphen characters.'
-      )
+      .regex(/^[^<>]/, 'Current organization accept all characters except angle brackets (< >).')
       .min(3)
       .max(30)
       .optional()
@@ -128,17 +122,14 @@ export const InstructorProfileSchema = z.object({
       .nullable(),
     // == Others Info
     bio: z
-      .string({ error: 'Bio must be more than 10 characters and less than 400 characters' })
-      .regex(
-        /^[\p{L}0-9\s\.,'"\-\/\(\)]{10,400}$/u,
-        'Bio must contain only letters, digits, spaces, punctuation marks, and special characters'
-      )
+      .string({ error: 'Bio must be more than 10 characters and less than 4000 characters' })
+      .regex(/^[^<>]{10,4000}$/, 'Angle brackets (< >) are not allowed in Bio.')
       .min(10)
-      .max(400),
+      .max(4000),
     skills: z.array(
       z
         .string({ error: 'Skills must be an array of strings' })
-        .regex(/^[a-zA-Z\s]+$/, 'Skill must contain only letters and spaces')
+        .regex(/^[^<>]/, 'Skill must contain only letters and spaces')
         .min(3, 'Each skill must have at least 3 characters')
     ),
     website: z
