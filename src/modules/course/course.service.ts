@@ -704,9 +704,10 @@ const getAllCoursesForPublic = async (req: Request) => {
 };
 
 const getSingleCourseForPublicView = async (req: Request) => {
-  const courseId = req.params.courseId;
+  const courseId = typeof req.params.id === 'string' ? req.params.id : undefined;
+
   if (!courseId) {
-    throw new Error('Course Not Provided');
+    throw new Error('Invalid Course ID');
   }
 
   const getCourseDetails = await executeDbOperation(async prisma => {
@@ -911,15 +912,14 @@ const getSingleCourseForPublicView = async (req: Request) => {
 
 const getSingleCourseForPaidView = async (req: Request) => {
   const user = req.user;
-  if (!user.email) {
+  if (!user) {
     throw new Error('User not authenticated');
   }
 
-  const courseId = req.params.courseId;
-  if (!courseId) {
-    throw new Error('Course Not Provided');
+  const { courseId } = req.params;
+  if (typeof courseId !== 'string') {
+    throw new Error('A valid Course ID must be provided');
   }
-  console.log('course ID', courseId);
   const getCourseDetails = await executeDbOperation(async prisma => {
     return await prisma.course.findFirst({
       where: {
@@ -927,7 +927,7 @@ const getSingleCourseForPaidView = async (req: Request) => {
         enrollments: {
           some: {
             userId: user.id,
-            status: EnrollmentStatus.COMPLETED,
+            status: EnrollmentStatus.ACTIVE,
           },
         },
         deletedAt: null,
@@ -938,10 +938,12 @@ const getSingleCourseForPaidView = async (req: Request) => {
         updatedAt: true,
 
         modules: {
+          orderBy: { position: 'asc' },
           select: {
             title: true,
             position: true,
             lessons: {
+              orderBy: { position: 'asc' },
               select: {
                 position: true,
                 contentUrl: true,
@@ -965,59 +967,49 @@ const getSingleCourseForPaidView = async (req: Request) => {
   }, 'Get Specific Course Data for paid view');
 
   if (!getCourseDetails) {
-    throw new Error('Course Not Found');
+    throw new Error('Course not found or you are not enrolled.');
   }
 
-  const formatCourseData = (course: typeof getCourseDetails) => {
-    let totalDuration = 0;
+  const totalDurationSeconds = getCourseDetails.modules.reduce((acc, mod) => {
+    return acc + mod.lessons.reduce((lAcc, lesson) => lAcc + (lesson.duration ?? 0), 0);
+  }, 0);
 
-    course.modules.forEach(module => {
-      module.lessons.forEach(lesson => {
-        totalDuration += lesson.duration ?? 0;
-      });
-    });
+  const hours = Math.floor(totalDurationSeconds / 3600);
+  const minutes = Math.floor((totalDurationSeconds % 3600) / 60);
+  const formattedDuration = `${hours}h ${minutes.toString().padStart(2, '0')}m`;
 
-    const hours = Math.floor(totalDuration / 3600);
-    const minutes = Math.floor((totalDuration % 3600) / 60);
-    const totalDurationInFormatted = `${hours}h ${minutes.toString().padStart(2, '0')} m`;
-
-    return {
-      title: course.title,
-      createdAt: course.createdAt,
-      updatedAt: course.updatedAt,
-      content: {
-        totalLessons: course.modules.reduce((a, b) => b.lessons.length + a, 0),
-        totalDuration: totalDurationInFormatted,
-      },
-      modules: course.modules.map(m => {
-        return {
-          isExpanded: false,
-          position: m.position,
-          title: m.title,
-          duration: m.lessons.reduce((a, b) => (b.duration ?? 0) + a, 0),
-          lessons: m.lessons.map(l => {
-            return {
-              postion: l.position,
-              title: l.title,
-              description: l.description,
-              notes: l.notes,
-              duration: l.duration,
-              type: l.type,
-              contentUrl: l.contentUrl,
-              files: l.files.map(f => ({ name: f.name, url: f.url })),
-            };
-          }),
-        };
-      }),
-    };
+  return {
+    title: getCourseDetails.title,
+    createdAt: getCourseDetails.createdAt,
+    updatedAt: getCourseDetails.updatedAt,
+    content: {
+      totalLessons: getCourseDetails.modules.reduce((acc, m) => acc + m.lessons.length, 0),
+      totalDuration: formattedDuration,
+    },
+    modules: getCourseDetails.modules.map(m => ({
+      isExpanded: false,
+      position: m.position,
+      title: m.title,
+      moduleDuration: m.lessons.reduce((acc, l) => acc + (l.duration ?? 0), 0),
+      lessons: m.lessons.map(l => ({
+        position: l.position,
+        title: l.title,
+        description: l.description,
+        notes: l.notes,
+        duration: l.duration,
+        type: l.type,
+        contentUrl: l.contentUrl,
+        files: l.files,
+      })),
+    })),
   };
-  return formatCourseData(getCourseDetails);
 };
 
 const getSingleCourseForInstructorView = async (req: Request) => {
-  const courseId = req.params.courseId;
-  if (!courseId) {
-    throw new Error('Course Not Provided');
+  const { courseId } = req.params;
+
+  if (typeof courseId !== 'string') {
+    throw new Error('Valid Course ID must be provided as a string');
   }
 
   const oneWeekAgo = new Date();
@@ -1169,7 +1161,7 @@ const getSingleCourseForInstructorView = async (req: Request) => {
       title: course.title,
       originalPrice: course.originalPrice,
       discountPrice: course.discountPrice,
-      objective: JSON.parse(course.description).objectives,
+      objective: course.description ? JSON.parse(course.description).objectives : [],
       isDiscountActive: course.isDiscountActive,
       currency: course.currency,
       enrollmentCount: course.enrollmentCount,
@@ -1213,9 +1205,10 @@ const getSingleCourseForInstructorView = async (req: Request) => {
 };
 
 const getSingleCourseForInstructorEdit = async (req: Request) => {
-  const courseId = req.params.courseId;
-  if (!courseId) {
-    throw new Error('Course Not Provided');
+  const { courseId } = req.params;
+
+  if (typeof courseId !== 'string') {
+    throw new Error('Valid Course ID must be provided as a string');
   }
 
   const getCourseDetails = await executeDbOperation(async prisma => {
