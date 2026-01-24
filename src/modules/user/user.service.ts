@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
 import { type Request } from 'express';
 import { executeDbOperation } from '../../config/database.js';
-import { ApplicationStatus, UserStatus } from '../../generated/client/client.js';
+import { ApplicationStatus, UserStatus } from '../../generated/client.js';
 
 // const getSingleUser = async (req: Request) => {
 //   const data = req.params;

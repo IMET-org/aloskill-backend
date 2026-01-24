@@ -5,7 +5,7 @@
 import crypto from 'crypto';
 import { type Request } from 'express';
 import { executeDbOperation } from '../../config/database.js';
-import { UserRole, UserStatus } from '../../generated/client/client.js';
+import { UserRole, UserStatus } from '../../generated/client.js';
 import type { DeviceInfo } from '../../types/deviceSessionStore.js';
 import { DeviceFingerprint } from '../../utils/deviceFingerprint.js';
 import { hash, verifyHash } from '../../utils/hashing.js';
