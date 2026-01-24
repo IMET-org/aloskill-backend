@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-redundant-type-constituents */
 import { PrismaPg } from '@prisma/adapter-pg';
 import 'dotenv/config';
 import { PrismaClient, type Prisma } from '../generated/client.js';

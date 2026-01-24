@@ -85,7 +85,7 @@ const startHttpServer = async (): Promise<void> => {
     try {
       const expressApp = app as unknown as Express;
 
-      server = expressApp.listen(config.PORT, () => {
+      server = expressApp.listen(parseInt(config.PORT), '0.0.0.0', () => {
         console.log(`  ✅ HTTP Server listening on port ${config.PORT}`);
         resolve();
       });
