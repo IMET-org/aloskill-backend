@@ -4,7 +4,7 @@ import { z } from 'zod';
 dotenv.config();
 
 const envSchema = z.object({
-  PORT: z.string().default(String(process.env.PORT)),
+  PORT: z.string().default(process.env.PORT as string),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   SECURE: z.enum(['development', 'production', 'test']).default('development'),
   JWT_SECRET: z
