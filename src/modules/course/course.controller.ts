@@ -54,6 +54,10 @@ const getCategories = catchAsync(async (req, res): Promise<void> => {
 
 const checkCourseSlugAvailability = catchAsync(async (req, res): Promise<void> => {
   const { slug } = req.params;
+  if (typeof slug !== 'string') {
+    ResponseHandler.badRequest(res, 'A valid course slug must be a single string.');
+    return;
+  }
   const isAvailable = await courseService.isCourseSlugAvailable(slug);
 
   if (isAvailable) {
