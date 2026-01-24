@@ -2,18 +2,22 @@
   "compilerOptions": {
     "target": "ES2023",
     "lib": ["ES2023"],
-    "module": "ESNext",
-    // "module": "NodeNext",
-    "moduleResolution": "bundler",
+
+    // "module": "ESNext",
+    // "moduleResolution": "bundler",
+
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+
     "jsx": "react-jsx",
     "jsxImportSource": "react",
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
     "resolveJsonModule": true,
 
-    "outDir": "./dist",
-    // "rootDir": "./src",
-    "rootDir": ".",
+    "outDir": "dist",
+    "rootDir": "src",
+    // "rootDir": ".",
     // "include": ["src", "prisma"],
     "removeComments": true,
     "declaration": true,
@@ -24,9 +28,11 @@
     "forceConsistentCasingInFileNames": true,
     "isolatedModules": true,
     "types": ["node"],
-    "baseUrl": "./src",
+    "baseUrl": ".",
+    // "baseUrl": ".",
     "paths": {
-      "@/*": ["*"],
+      // "@/*": ["*"],
+      "@/*": ["src/*"],
       "@/middlewares/*": ["middlewares/*"],
       "@/config/*": ["config/*"],
       "@/utils/*": ["utils/*"],
@@ -45,8 +51,10 @@
   //   "prisma/**/*",
   //   "prisma.config.ts"
   // ],
-  "include": ["src/**/*", "src", "src/types", "**/*.ts", "**/*.tsx"],
-  "exclude": ["node_modules", "dist", "logs", "**/*.test.ts"],
+  // "include": ["src/**/*", "src", "src/types", "**/*.ts", "**/*.tsx"],
+  // "exclude": ["node_modules", "dist", "logs", "**/*.test.ts"],
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist", "logs", "**/*.test.ts", "prisma.config.ts"],
   "ts-node": {
     "require": ["tsconfig-paths/register"],
     "files": true,

@@ -12,7 +12,7 @@ import {
   Language,
   QuestionType,
   UserStatus,
-} from '../../generated/client/client.js';
+} from '../../generated/client.js';
 import type { CreateCoursePayload } from './course.validation.js';
 
 const getCategories = async () => {

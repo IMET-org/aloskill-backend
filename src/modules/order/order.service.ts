@@ -3,7 +3,7 @@
 import { type Request } from 'express';
 import { executeDbOperation } from '../../config/database.js';
 import { config } from '../../config/env.js';
-import { ApplicationStatus, OrderStatus, PaymentProviders } from '../../generated/client/client.js';
+import { ApplicationStatus, OrderStatus, PaymentProviders } from '../../generated/client.js';
 import { decryptPhoneNumber } from '../../utils/phoneNumber.js';
 
 const createPayment = async (req: Request) => {

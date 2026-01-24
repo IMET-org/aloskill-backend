@@ -2,7 +2,7 @@
 import type { ErrorRequestHandler, RequestHandler } from 'express';
 import { ZodError } from 'zod';
 import { config } from '../config/env.js';
-import { Prisma } from '../generated/client/client.js';
+import { Prisma } from '../generated/client.js';
 import type { SafeZodIssue, ZIssueLike } from '../types/errorHandler.types.js';
 import { HttpStatus } from '../types/shared.js';
 import { errorlogger } from '../utils/logger.js';

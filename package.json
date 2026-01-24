@@ -13,6 +13,7 @@
     "prepare": "husky install",
     "dev": "tsx watch src/server.ts",
     "clean": "rimraf dist",
+    "postinstall": "prisma generate",
     "build": "npm run clean && tsc",
     "start": "node dist/server.js",
     "typecheck": "tsc --noEmit",

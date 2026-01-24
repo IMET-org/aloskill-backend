@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-redundant-type-constituents */
 import { PrismaPg } from '@prisma/adapter-pg';
 import 'dotenv/config';
-import { PrismaClient, type Prisma } from '../generated/client/client.js';
+import { PrismaClient, type Prisma } from '../generated/client.js';
 
 // Type-safe Prisma client based on log configuration
 // type LoggedPrismaClient = PrismaClient<{
@@ -503,4 +503,3 @@ export const executeDbOperation = async <T>(
 // Export types and error classes
 export { DatabaseConnectionError, DatabaseQueryError };
 export type { ConnectionOptions, ConnectionState, DatabaseConfig, LoggedPrismaClient };
-
