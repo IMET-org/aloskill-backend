@@ -4,15 +4,59 @@ import { type Request } from 'express';
 import { executeDbOperation } from '../../config/database.js';
 import { ApplicationStatus, UserStatus } from '../../generated/client/client.js';
 
+// const getSingleUser = async (req: Request) => {
+//   const data = req.params;
+//   if (!data.email) {
+//     throw new Error('Email Not provided');
+//   }
+
+//   const user = await executeDbOperation(async prisma => {
+//     return await prisma.user.findUnique({
+//       where: { email: data.email },
+//       select: {
+//         email: true,
+//         status: true,
+//         instructorProfile: {
+//           select: {
+//             displayName: true,
+//           },
+//         },
+//       },
+//     });
+//   });
+
+//   if (!user) {
+//     return {
+//       canProceed: true,
+//     };
+//   }
+
+//   if (user.status !== UserStatus.ACTIVE) {
+//     return {
+//       canProceed: false,
+//     };
+//   }
+
+//   if (user.instructorProfile) {
+//     return {
+//       canProceed: false,
+//     };
+//   }
+
+//   return {
+//     canProceed: true,
+//   };
+// };
+
 const getSingleUser = async (req: Request) => {
-  const data = req.params;
-  if (!data.email) {
-    throw new Error('Email Not provided');
+  const { email } = req.params;
+  if (!email || typeof email !== 'string') {
+    throw new Error('Valid Email not provided');
   }
 
   const user = await executeDbOperation(async prisma => {
     return await prisma.user.findUnique({
-      where: { email: data.email },
+      where: { email },
       select: {
         email: true,
         status: true,
@@ -80,15 +124,15 @@ const getAllUsers = async () => {
 };
 
 const getSingleInstructor = async (req: Request) => {
-  const data = req.params;
-  if (!data.id) {
-    throw new Error('User ID Not provided');
+  const { id } = req.params;
+  if (!id || typeof id !== 'string') {
+    throw new Error('A valid User ID string must be provided');
   }
 
   const instructor = await executeDbOperation(async prisma => {
     return await prisma.instructorProfile.findFirst({
       where: {
-        userId: data.id,
+        userId: id,
         status: ApplicationStatus.APPROVED,
         deletedAt: null,
       },
@@ -160,7 +204,7 @@ const getSingleInstructor = async (req: Request) => {
   });
 
   if (!instructor) {
-    throw new Error(`No instructor found with the given ID ${data.id}`);
+    throw new Error(`No instructor found with the given ID ${id}`);
   }
 
   return {
