@@ -85,8 +85,8 @@ const startHttpServer = async (): Promise<void> => {
     try {
       const expressApp = app as unknown as Express;
 
-      server = expressApp.listen(parseInt(config.PORT), '0.0.0.0', () => {
-        console.log(`  ✅ HTTP Server listening on port ${config.PORT}`);
+      server = expressApp.listen(parseInt(config.PORT), () => {
+        console.log(`  ✅ HTTP Server listening at http://0.0.0.0:${config.PORT}`);
         resolve();
       });
 
@@ -373,14 +373,20 @@ const startServer = async (): Promise<void> => {
 // Start the server if this file is run directly
 // Check if this file is being run directly (ES module equivalent of require.main === module)
 // const isMainModule = import.meta.url === `file://${process.argv[1]}`;
-const isMainModule =
-  config.NODE_ENV === 'development' && process.argv.some(arg => arg.includes('server.ts'));
 
-if (isMainModule) {
-  startServer().catch(error => {
-    console.error('💥 Fatal error during server startup:', error);
-    process.exit(1);
-  });
-}
+// const isMainModule =
+//   config.NODE_ENV === 'development' && process.argv.some(arg => arg.includes('server.ts'));
 
+// if (isMainModule) {
+//   startServer().catch(error => {
+//     console.error('💥 Fatal error during server startup:', error);
+//     process.exit(1);
+//   });
+// }
+
+// Start the server
+startServer().catch(error => {
+  console.error('💥 Fatal error during server startup:', error);
+  process.exit(1);
+});
 export default startServer;
