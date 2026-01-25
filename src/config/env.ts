@@ -20,8 +20,8 @@ const envSchema = z.object({
       protocol: /^https?$/i,
       hostname: /^([a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$/,
     })
-    .default(process.env.FRONTEND_URL as string),
-    // .default('http://localhost:3000'),
+    // .default(process.env.FRONTEND_URL as string),
+    .default('http://localhost:3000'),
   COOKIE_SECRET: z
     .string()
     .min(32, 'Cookie secret must be at least 32 characters')
