@@ -396,7 +396,10 @@ const loginUser = async (req: Request) => {
 
 const registerStudent = async (req: Request) => {
   const data = req.body;
+
   const deviceData = req.deviceInfo as DeviceInfo;
+  const {location, ...othersDeviceData} = deviceData;
+
   const { password, googleId } = data;
   if (!password && !googleId) {
     throw new Error('Password or Google ID must be provided');
@@ -476,7 +479,8 @@ const registerStudent = async (req: Request) => {
                 deviceId: DeviceFingerprint.generateDeviceId(deviceData),
                 deviceFingerprint: DeviceFingerprint.generateFromDeviceInfo(deviceData),
                 sessionToken: hashedToken,
-                ...deviceData,
+                ...othersDeviceData,
+                ...location,
                 expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
                 refreshTokens: {
                   create: {
