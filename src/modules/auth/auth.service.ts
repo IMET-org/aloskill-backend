@@ -399,16 +399,7 @@ const registerStudent = async (req: Request) => {
 
   const deviceData = req.deviceInfo as DeviceInfo;
   const {location, ...othersDeviceData} = deviceData;
-  console.log('datadata from auth service', deviceData);
-// datadata from auth service {
-//   userAgent: 'node',
-//   ipAddress: '101.2.166.62',
-//   deviceType: 'DESKTOP',
-//   browser: 'Unknown',
-//   os: 'Unknown',
-//   platform: 'desktop',
-//   location: { country: 'BD', city: 'Chittagong', timezone: 'Asia/Dhaka' }
-// }
+
   const { password, googleId } = data;
   if (!password && !googleId) {
     throw new Error('Password or Google ID must be provided');

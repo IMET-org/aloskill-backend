@@ -822,7 +822,7 @@ const getSingleCourseForPublicView = async (req: Request) => {
         if (lesson.type === 'QUIZ') {
           totalDuration += lesson.duration ?? 0;
         }
-        totalFiles += lesson.files.length ?? 0;
+        totalFiles += lesson.files.length;
       });
     });
 
@@ -831,7 +831,7 @@ const getSingleCourseForPublicView = async (req: Request) => {
       distribution[r.rating]++;
     });
 
-    const totalReviews = course.reviews.length ?? 1;
+    const totalReviews = course.reviews.length;
     const ratingStats = Object.keys(distribution).map(star => {
       const starNum = Number(star);
       return {
@@ -1413,7 +1413,7 @@ const getCartCourses = async (req: Request) => {
 const getBunnySignature = async (req: Request) => {
   const { collectionName, fileName } = req.query as { collectionName: string; fileName: string };
   const apiKey = config.BUNNY_STREAM_API_KEY;
-  const videoLibraryId = config.BUNNY_VIDOE_LIBRARY_ID;
+  const videoLibraryId = config.BUNNY_STREAM_LIBRARY_ID;
   const expires = Math.floor(Date.now() / 1000) + 900;
 
   const createVideoBuffer = async (collectionId: string) => {
@@ -1486,14 +1486,16 @@ const createFileToBunny = async (req: Request) => {
   if (!folder) {
     return null;
   }
+  const REGION = 'SG';
   const BASE_HOSTNAME = 'storage.bunnycdn.com';
-  const HOSTNAME = `${BASE_HOSTNAME}`;
+  // const HOSTNAME = `${BASE_HOSTNAME}`;
+  const HOSTNAME = `${REGION}.${BASE_HOSTNAME}`;
 
   const uniqueId = Math.random().toString(36).substring(2, 8);
   const timestamp = Date.now();
   const fileName = `${timestamp}-${uniqueId}-${req.file?.originalname}`;
-  const storageZone = config.BUNNY_STORAGE_ZONE;
-  const accessKey = config.BUNNY_STORAGE_ZONE_KEY;
+  const storageZone = config.BUNNY_STORAGE_ZONE_USERNAME;
+  const accessKey = config.BUNNY_STORAGE_ZONE_PASSWORD;
   const pullZone = config.BUNNY_PULL_ZONE;
   const safePath = encodeURI(folder.replace(/^\/+|\/+$/g, '').replace(/\/+/g, '/'));
 
@@ -1540,8 +1542,8 @@ const getSecureVideoToken = (req: Request) => {
 
   // const path = `/play/${filePath}`;
   // const userIp = req.ip;
-  const authenticationKey = config.BUNNY_AUTHENTICATION_KEY;
-  const libraryId = config.BUNNY_VIDOE_LIBRARY_ID;
+  const authenticationKey = config.BUNNY_STREAM_TOKEN_AUTH_KEY;
+  const libraryId = config.BUNNY_STREAM_LIBRARY_ID;
   const expires = Math.floor(new Date().getTime() / 1000) + 1200 + duration * 60;
   const hashableBase = authenticationKey + filePath + expires;
 
