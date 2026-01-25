@@ -396,7 +396,18 @@ const loginUser = async (req: Request) => {
 
 const registerStudent = async (req: Request) => {
   const data = req.body;
+
   const deviceData = req.deviceInfo as DeviceInfo;
+  console.log('datadata from auth service', deviceData);
+  // location: {
+  //      geoLocation?: NullableJsonNullValueInput | Json,
+  //      isActive?: Boolean,
+  //         country: "BD",
+  //         city: "Dhaka",
+  //      lastActivity?: DateTime,
+  //         timezone: "Asia/Dhaka"
+  //      isCompromised?: Boolean,
+  //       },
   const { password, googleId } = data;
   if (!password && !googleId) {
     throw new Error('Password or Google ID must be provided');
@@ -476,7 +487,7 @@ const registerStudent = async (req: Request) => {
                 deviceId: DeviceFingerprint.generateDeviceId(deviceData),
                 deviceFingerprint: DeviceFingerprint.generateFromDeviceInfo(deviceData),
                 sessionToken: hashedToken,
-                ...deviceData,
+                ...(deviceData.location && { location: deviceData.location }),
                 expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
                 refreshTokens: {
                   create: {
