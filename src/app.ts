@@ -28,7 +28,7 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Proxy support
 if (process.env.NODE_ENV === 'production') {
-  app.set('trust proxy', true);
+  app.set('trust proxy', 1);
 }
 
 // Security middleware
