@@ -487,7 +487,7 @@ const registerStudent = async (req: Request) => {
                 deviceId: DeviceFingerprint.generateDeviceId(deviceData),
                 deviceFingerprint: DeviceFingerprint.generateFromDeviceInfo(deviceData),
                 sessionToken: hashedToken,
-                ...(deviceData.location && { location: deviceData.location }),
+                ...deviceData,
                 expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
                 refreshTokens: {
                   create: {
