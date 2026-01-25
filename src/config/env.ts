@@ -20,8 +20,8 @@ const envSchema = z.object({
       protocol: /^https?$/i,
       hostname: /^([a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$/,
     })
-    // .default(process.env.FRONTEND_URL as string),
-    .default('http://localhost:3000'),
+    .default(process.env.FRONTEND_URL as string),
+  // .default('http://localhost:3000'),
   COOKIE_SECRET: z
     .string()
     .min(32, 'Cookie secret must be at least 32 characters')
@@ -48,10 +48,16 @@ const envSchema = z.object({
   RESEND_API_KEY: z.string().default(process.env.RESEND_API_KEY as string),
   PHONE_KEY: z.string().default(process.env.PHONE_KEY as string),
   BUNNY_STREAM_API_KEY: z.string().default(process.env.BUNNY_STREAM_API_KEY as string),
-  BUNNY_STREAM_TOKEN_AUTH_KEY: z.string().default(process.env.BUNNY_STREAM_TOKEN_AUTH_KEY as string),
+  BUNNY_STREAM_TOKEN_AUTH_KEY: z
+    .string()
+    .default(process.env.BUNNY_STREAM_TOKEN_AUTH_KEY as string),
   BUNNY_STREAM_LIBRARY_ID: z.string().default(process.env.BUNNY_STREAM_LIBRARY_ID as string),
-  BUNNY_STORAGE_ZONE_USERNAME: z.string().default(process.env.BUNNY_STORAGE_ZONE_USERNAME as string),
-  BUNNY_STORAGE_ZONE_PASSWORD: z.string().default(process.env.BUNNY_STORAGE_ZONE_PASSWORD as string),
+  BUNNY_STORAGE_ZONE_USERNAME: z
+    .string()
+    .default(process.env.BUNNY_STORAGE_ZONE_USERNAME as string),
+  BUNNY_STORAGE_ZONE_PASSWORD: z
+    .string()
+    .default(process.env.BUNNY_STORAGE_ZONE_PASSWORD as string),
   BUNNY_PULL_ZONE: z.string().default(process.env.BUNNY_PULL_ZONE as string),
   SSLCOMMERCE_STORE_ID: z.string().default(process.env.SSLCOMMERCE_STORE_ID as string),
   SSLCOMMERCE_STORE_PASSWORD: z.string().default(process.env.SSLCOMMERCE_STORE_PASS as string),
