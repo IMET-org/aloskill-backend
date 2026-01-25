@@ -92,10 +92,16 @@ const loginUser = async (req: Request) => {
   if (!data.password && !data.googleId) {
     throw new Error('Invalid login method');
   }
+  if (!data.email) {
+    throw new Error('Email is not provided for login');
+  }
 
   const user = await executeDbOperation(async prisma => {
-    return await prisma.user.findUnique({
-      where: { email: data.email },
+    return await prisma.user.findFirst({
+      where: {
+        email: data.email,
+        deletedAt: null
+      },
       include: { sessions: { include: { refreshTokens: true } } },
     });
   });
