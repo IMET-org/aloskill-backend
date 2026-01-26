@@ -704,7 +704,7 @@ const getAllCoursesForPublic = async (req: Request) => {
 };
 
 const getSingleCourseForPublicView = async (req: Request) => {
-  const courseId = typeof req.params.id === 'string' ? req.params.id : undefined;
+  const courseId = typeof req.params.courseId === 'string' ? req.params.courseId : undefined;
 
   if (!courseId) {
     throw new Error('Invalid Course ID');
