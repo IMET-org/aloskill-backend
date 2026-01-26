@@ -100,7 +100,7 @@ const loginUser = async (req: Request) => {
     return await prisma.user.findFirst({
       where: {
         email: data.email,
-        deletedAt: null
+        deletedAt: null,
       },
       include: { sessions: { include: { refreshTokens: true } } },
     });
@@ -203,13 +203,16 @@ const loginUser = async (req: Request) => {
         } else {
           // === NEW SESSION ===
           const fingerprint = DeviceFingerprint.generateFromDeviceInfo(deviceData);
+          const { location, ...otherDeviceData } = deviceData;
           const newSession = await tx.userSession.create({
             data: {
               deviceId,
               deviceFingerprint: fingerprint,
               userId: user.id,
               sessionToken: hashRefreshToken(crypto.randomBytes(64).toString('hex')),
-              ...deviceData,
+              // ...deviceData,
+              ...otherDeviceData, // Spread everything EXCEPT location
+              ...location, // Map location to geoLocation
               expiresAt: sessionExpiresAt,
               refreshTokens: {
                 create: {
@@ -364,13 +367,16 @@ const loginUser = async (req: Request) => {
         } else {
           // === NEW SESSION ===
           const fingerprint = DeviceFingerprint.generateFromDeviceInfo(deviceData);
+          const { location, ...otherDeviceData } = deviceData;
           const newSession = await tx.userSession.create({
             data: {
               deviceId,
               deviceFingerprint: fingerprint,
               userId: user.id,
               sessionToken: hashRefreshToken(crypto.randomBytes(64).toString('hex')),
-              ...deviceData,
+              // ...deviceData,
+              ...otherDeviceData,
+              ...location,
               expiresAt: sessionExpiresAt,
               refreshTokens: {
                 create: {
@@ -404,7 +410,7 @@ const registerStudent = async (req: Request) => {
   const data = req.body;
 
   const deviceData = req.deviceInfo as DeviceInfo;
-  const {location, ...othersDeviceData} = deviceData;
+  const { location, ...othersDeviceData } = deviceData;
 
   const { password, googleId } = data;
   if (!password && !googleId) {
