@@ -170,7 +170,10 @@ const createPayment = async (req: Request) => {
 const validateIPN = async (req: Request) => {
   // const { tran_id, val_id } = await req.body;
   console.log('IPN req data from ssl : ', await req.body);
-  // console.log('IPN req data : ', { tran_id, val_id });
+
+  const verifyTxn = await fetch(`https://sandbox.sslcommerz.com/validator/api/validationserverAPI.php?val_id=${req.body.val_id}&store_id=${config.SSLCOMMERCE_STORE_ID}&store_passwd=${config.SSLCOMMERCE_STORE_PASSWORD}&format=json`);
+  const verifyData = await verifyTxn.json();
+  console.log('IPN verify data from ssl : ', verifyData);
 };
 
 export const orderService = {
