@@ -169,7 +169,7 @@ const createPayment = async (req: Request) => {
 
 const validateIPN = async (req: Request) => {
   // const { tran_id, val_id } = await req.body;
-  console.log('IPN req data : ', await req.body);
+  console.log('IPN req data from ssl : ', await req.body);
   // console.log('IPN req data : ', { tran_id, val_id });
 };
 
