@@ -3,7 +3,14 @@
 import { type Request } from 'express';
 import { executeDbOperation } from '../../config/database.js';
 import { config } from '../../config/env.js';
-import { ApplicationStatus, EnrollmentStatus, OrderStatus, PaymentProviders, TransactionStatus, TransactionType } from '../../generated/client.js';
+import {
+  ApplicationStatus,
+  EnrollmentStatus,
+  OrderStatus,
+  PaymentProviders,
+  TransactionStatus,
+  TransactionType,
+} from '../../generated/client.js';
 import { decryptPhoneNumber } from '../../utils/phoneNumber.js';
 
 const createPayment = async (req: Request) => {
@@ -175,14 +182,13 @@ const validateIPN = async (req: Request) => {
     status: string;
   };
 
-   if(!bodyData.val_id){
+  if (!bodyData.val_id) {
     throw new Error('Invalid IPN data');
   }
 
-  if(bodyData.status !== 'VALID'){
+  if (bodyData.status !== 'VALID') {
     const updateOrderStatus = await executeDbOperation(async prisma => {
       return await prisma.$transaction(async tx => {
-
         const updatedOrder = await tx.order.update({
           where: { id: bodyData.val_id },
           data: {
@@ -200,18 +206,19 @@ const validateIPN = async (req: Request) => {
             status: TransactionStatus.FAILED,
             type: TransactionType.PURCHASE,
             // Optional: you could add a 'notes' field to your schema to store the failure reason
-          }
+          },
         });
-
       });
     });
-    console.log("Update Order Status for failed/cancelled: ", updateOrderStatus);
+    console.log('Update Order Status for failed/cancelled: ', updateOrderStatus);
     return;
-  };
+  }
 
-  const verifyTxn = await fetch(`https://sandbox.sslcommerz.com/validator/api/validationserverAPI.php?val_id=${bodyData.val_id}&store_id=${config.SSLCOMMERCE_STORE_ID}&store_passwd=${config.SSLCOMMERCE_STORE_PASSWORD}&format=json`);
+  const verifyTxn = await fetch(
+    `https://sandbox.sslcommerz.com/validator/api/validationserverAPI.php?val_id=${bodyData.val_id}&store_id=${config.SSLCOMMERCE_STORE_ID}&store_passwd=${config.SSLCOMMERCE_STORE_PASSWORD}&format=json`
+  );
 
-  if(!verifyTxn.ok){
+  if (!verifyTxn.ok) {
     throw new Error('Failed to verify transaction');
   }
   const verifyData = await verifyTxn.json();
@@ -228,10 +235,9 @@ const validateIPN = async (req: Request) => {
   const updateOrderStatus = await executeDbOperation(async prisma => {
     return await prisma.$transaction(async tx => {
       if (status === 'VALID' || status === 'VALIDATED') {
-
         const order = await tx.order.findUnique({
           where: { id: tran_id },
-          include: { orderItems: true, user: true }
+          include: { orderItems: true, user: true },
         });
         if (!order) {
           throw new Error('Order not found');
@@ -247,7 +253,6 @@ const validateIPN = async (req: Request) => {
             providerOrderId: val_id,
           },
         });
-
         // need to update payment method in schema
         // payment method update properly
         // payment method transction id update properly
@@ -260,49 +265,49 @@ const validateIPN = async (req: Request) => {
             providerPaymentId: val_id,
             providerFee: amount - store_amount,
             status: TransactionStatus.SUCCEEDED,
-            type: TransactionType.PURCHASE
-          }
+            type: TransactionType.PURCHASE,
+          },
         });
 
         // need to update originalPriceAtTime properly
         // need to update discount at time properly
-        for(const item of order.orderItems) {
+        for (const item of order.orderItems) {
           await tx.enrollment.create({
             data: {
               userId: order.userId,
               courseId: item.courseId,
               pricePaid: amount,
               originalPriceAtTime: item.price,
-              status: EnrollmentStatus.ACTIVE
-            }
+              status: EnrollmentStatus.ACTIVE,
+            },
           });
 
           const course = await tx.course.update({
             where: { id: item.courseId },
             data: {
               enrollmentCount: { increment: 1 },
-              totalRevenueAmount: { increment: store_amount }
-            }
+              totalRevenueAmount: { increment: store_amount },
+            },
           });
-          if(course.createdById){
+          if (course.createdById) {
             await tx.instructorProfile.update({
               where: { id: course.createdById },
               data: {
                 totalStudents: { increment: 1 },
-                totalRevenueAmount: { increment: store_amount }
+                totalRevenueAmount: { increment: store_amount },
               },
             });
-          };
+          }
 
           await tx.wishlist.deleteMany({
-            where: { userId: order.userId, courseId: item.courseId }
+            where: { userId: order.userId, courseId: item.courseId },
           });
         }
       }
     });
   });
 
-  console.log("Update Order Status: ", updateOrderStatus);
+  console.log('Update Order Status: ', updateOrderStatus);
 };
 
 export const orderService = {
