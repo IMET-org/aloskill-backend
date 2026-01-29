@@ -1,25 +1,46 @@
-import { executeDbOperation } from '../config/database.js';
+
 import cron from 'node-cron';
+import { connectCronDatabase, disconnectCronDatabase } from '../config/cronDatabase.js';
+
+const runCronDbOperation = async <T>(
+  operation: (prisma: Awaited<ReturnType<typeof connectCronDatabase>>) => Promise<T>,
+  operationName?: string
+): Promise<T> => {
+  const prisma = await connectCronDatabase();
+
+  try {
+    return await operation(prisma);
+  } catch (error) {
+    console.error(`❌ Cron DB Error (${operationName}):`, error);
+    throw error;
+  }
+};
+
 
 // Every minute
 cron.schedule(
   '* * * * *',
   async () => {
-    const now = new Date();
-    await executeDbOperation(async prisma => {
-      return await prisma.course.updateMany({
-        where: {
-          discountEndDate: { lte: now },
-          deletedAt: null,
-        },
-        data: {
-          isDiscountActive: false,
-          discountEndDate: null,
-          discountPercent: null,
-          discountPrice: null,
-        },
-      });
-    }, 'Updating Course Discount End function');
+    try {
+      const now = new Date();
+      const updateCourse =await runCronDbOperation(async prisma => {
+        return await prisma.course.updateMany({
+          where: {
+            discountEndDate: { lte: now },
+            deletedAt: null,
+          },
+          data: {
+            isDiscountActive: false,
+            discountEndDate: null,
+            discountPercent: null,
+            discountPrice: null,
+          },
+        });
+      }, 'Updating Course Discount End function');
+      console.log(`Updated ${updateCourse.count} course for discountPrice and DiscountEnd date.`);
+    } catch (error) {
+      console.error('❌ Cron job failed (Update course for discount manage):', error);
+    }
   },
   {
     timezone: 'Asia/Dhaka',
@@ -29,7 +50,7 @@ cron.schedule(
 // Every hour
 cron.schedule('0 * * * *', async () => {
   try {
-    const deletedToken = await executeDbOperation(async prisma => {
+    const deletedToken = await runCronDbOperation(async prisma => {
       return await prisma.refreshToken.deleteMany({
         where: {
           expiresAt: {
@@ -39,8 +60,8 @@ cron.schedule('0 * * * *', async () => {
       });
     });
     console.log(`Deleted ${deletedToken.count} expired refresh tokens.`);
-  } catch (_err) {
-    throw new Error('Error deleting expired refresh tokens with corn job.');
+  } catch (err) {
+    console.error('❌ Cron job failed (delete refresh tokens):', err);
   }
 });
 
@@ -58,3 +79,17 @@ cron.schedule('0 3 * * *', () => {
 cron.schedule('0 2 * * 0', () => {
   '';
 });
+
+const shutdown = () : void => {
+  console.log('🛑 Cron process shutting down...');
+  disconnectCronDatabase()
+    .catch(err => {
+      console.error('❌ Error during cron DB shutdown:', err);
+    })
+    .finally(() => {
+      process.exit(0);
+    });
+};
+
+process.on('SIGTERM', shutdown);
+process.on('SIGINT', shutdown);
