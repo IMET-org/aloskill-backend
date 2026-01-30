@@ -1,8 +1,8 @@
-import { generalLimiter, instructorQueryLimiter } from '../../middleware/security.js';
-import { validate } from '../../middleware/validation.js';
 import express from 'express';
 import multer from 'multer';
 import { requireAuth, requireInstructor, requireStudent } from '../../middleware/auth.js';
+import { generalLimiter, instructorQueryLimiter } from '../../middleware/security.js';
+import { validate } from '../../middleware/validation.js';
 import { courseController } from './course.controller.js';
 import {
   CreateCourseSchema,
@@ -95,7 +95,7 @@ router.get(
 
 router.post(
   '/get-video-url',
-  requireInstructor,
+  requireStudent,
   validate(GetSecureVideoToken),
   courseController.getSecureVideoToken
 );
