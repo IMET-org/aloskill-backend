@@ -2,6 +2,8 @@
 import cron from 'node-cron';
 import { connectCronDatabase, disconnectCronDatabase } from '../config/cronDatabase.js';
 
+let isRunning = false;
+
 const runCronDbOperation = async <T>(
   operation: (prisma: Awaited<ReturnType<typeof connectCronDatabase>>) => Promise<T>,
   operationName?: string
@@ -16,11 +18,16 @@ const runCronDbOperation = async <T>(
   }
 };
 
-
 // Every minute
 cron.schedule(
   '* * * * *',
   async () => {
+    if (isRunning) {
+      console.warn('⏳ Cron skipped (previous job still running)');
+      return;
+    }
+
+    isRunning = true;
     try {
       const now = new Date();
       const updateCourse =await runCronDbOperation(async prisma => {
@@ -40,6 +47,8 @@ cron.schedule(
       console.log(`Updated ${updateCourse.count} course for discountPrice and DiscountEnd date.`);
     } catch (error) {
       console.error('❌ Cron job failed (Update course for discount manage):', error);
+    } finally {
+      isRunning = false;
     }
   },
   {
@@ -93,3 +102,11 @@ const shutdown = () : void => {
 
 process.on('SIGTERM', shutdown);
 process.on('SIGINT', shutdown);
+
+process.on('uncaughtException', err => {
+  console.error('❌ Uncaught cron error:', err);
+});
+
+process.on('unhandledRejection', err => {
+  console.error('❌ Unhandled cron rejection:', err);
+});
