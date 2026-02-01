@@ -79,7 +79,7 @@ router.post('/bunny-signature', requireInstructor, courseController.getBunnySign
 
 router.post(
   '/file-upload',
-  requireInstructor,
+  requireStudent,
   (req, res, next) => {
     upload.single('file')(req, res, next);
   },
