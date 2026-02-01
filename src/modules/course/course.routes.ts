@@ -36,7 +36,9 @@ router.patch(
   courseController.updateCourse
 );
 
-router.get('/allCourses', requireInstructor, courseController.getAllCoursesForInstructor);
+router.get('/instructor/allCourses', requireInstructor, courseController.getAllCoursesForInstructor);
+
+router.get('/student/allCourses', requireStudent, courseController.getAllCoursesForStudent);
 
 router.get('/public/allCourses', courseController.getAllCoursesForPublic);
 

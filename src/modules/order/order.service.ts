@@ -119,6 +119,9 @@ const createPayment = async (req: Request) => {
       };
     });
   });
+  if(!createOrder){
+    throw new Error("Failed to create order");
+  }
   if (!createOrder.id) {
     throw new Error('Failed to create order');
   }

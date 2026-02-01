@@ -17,6 +17,11 @@ const getAllCoursesForInstructor = catchAsync(async (req, res): Promise<void> =>
   ResponseHandler.ok(res, 'All Courses Fetched Successfully!', result);
 });
 
+const getAllCoursesForStudent = catchAsync(async (req, res): Promise<void> => {
+  const result = await courseService.getAllCoursesForStudent(req);
+  ResponseHandler.ok(res, 'All Courses Fetched Successfully for student!', result);
+});
+
 const getAllCoursesForPublic = catchAsync(async (req, res): Promise<void> => {
   const result = await courseService.getAllCoursesForPublic(req);
   ResponseHandler.ok(res, 'All Courses Fetched Successfully for Public view!', result);
@@ -151,6 +156,7 @@ export const courseController = {
   createCourse,
   updateCourse,
   getAllCoursesForInstructor,
+  getAllCoursesForStudent,
   getAllCoursesForPublic,
   getCategories,
   checkCourseSlugAvailability,
