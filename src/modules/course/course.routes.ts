@@ -113,4 +113,6 @@ router.delete(
   courseController.deleteVideo
 );
 
+router.patch("/update-lesson/:userId", requireInstructor, courseController.updateLessonProgress);
+
 export const CourseRoutes = router;
