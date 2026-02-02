@@ -672,13 +672,15 @@ const getAllCoursesForStudent = async (req: Request) => {
         id: true,
         title: true,
         thumbnailUrl: true,
+        originalPrice: true,
+        discountPrice: true,
         LessonProgress: {
           select: {
             completed: true,
             progressValue: true,
             lastViewedAt: true,
-            completedAt: true
-          }
+            completedAt: true,
+          },
         },
         createdBy: {
           select: {
@@ -986,13 +988,21 @@ const getSingleCourseForPublicView = async (req: Request) => {
       },
       modules: course.modules.map(m => {
         const totalSeconds = m.lessons.reduce((a, b) => (b.duration ?? 0) + a, 0);
-        const totalDurationForModule = `${Math.floor(totalSeconds / 3600)}:${Math.floor((totalSeconds % 3600) / 60).toString().padStart(2, '0')}`;
+        const totalDurationForModule = `${Math.floor(totalSeconds / 3600)}:${Math.floor(
+          (totalSeconds % 3600) / 60
+        )
+          .toString()
+          .padStart(2, '0')}`;
         return {
           title: m.title,
           duration: totalDurationForModule,
           lessons: m.lessons.map(l => {
             const totalLessonDuration = l.duration ?? 0;
-            const totalDurationForLesson = `${Math.floor(totalLessonDuration / 3600)}:${Math.floor((totalLessonDuration % 3600) / 60).toString().padStart(2, '0')}`;
+            const totalDurationForLesson = `${Math.floor(totalLessonDuration / 3600)}:${Math.floor(
+              (totalLessonDuration % 3600) / 60
+            )
+              .toString()
+              .padStart(2, '0')}`;
             return {
               title: l.title,
               duration: totalDurationForLesson,
@@ -1041,7 +1051,7 @@ const getSingleCourseForPaidView = async (req: Request) => {
             progressValue: true,
             lastViewedAt: true,
             completedAt: true,
-          }
+          },
         },
 
         modules: {
@@ -1072,7 +1082,7 @@ const getSingleCourseForPaidView = async (req: Request) => {
                     progressValue: true,
                     lastViewedAt: true,
                     completedAt: true,
-                  }
+                  },
                 },
               },
             },
@@ -1103,17 +1113,25 @@ const getSingleCourseForPaidView = async (req: Request) => {
       totalDuration: formattedDuration,
     },
     courseProgress: getCourseDetails.LessonProgress,
-    modules: getCourseDetails.modules.map(m =>{
-      const totalSeconds =  m.lessons.reduce((acc, l) => acc + (l.duration ?? 0), 0);
-      const totalDurationForModule = `${Math.floor(totalSeconds / 3600)}:${Math.floor((totalSeconds % 3600) / 60).toString().padStart(2, '0')}`;
+    modules: getCourseDetails.modules.map(m => {
+      const totalSeconds = m.lessons.reduce((acc, l) => acc + (l.duration ?? 0), 0);
+      const totalDurationForModule = `${Math.floor(totalSeconds / 3600)}:${Math.floor(
+        (totalSeconds % 3600) / 60
+      )
+        .toString()
+        .padStart(2, '0')}`;
       return {
         isExpanded: false,
         position: m.position,
         title: m.title,
-        moduleDuration:totalDurationForModule,
+        moduleDuration: totalDurationForModule,
         lessons: m.lessons.map(l => {
           const totalLessonDuration = l.duration ?? 0;
-          const totalDurationForLesson = `${Math.floor(totalLessonDuration / 3600)}:${Math.floor((totalLessonDuration % 3600) / 60).toString().padStart(2, '0')}`;
+          const totalDurationForLesson = `${Math.floor(totalLessonDuration / 3600)}:${Math.floor(
+            (totalLessonDuration % 3600) / 60
+          )
+            .toString()
+            .padStart(2, '0')}`;
           return {
             id: l.id,
             position: l.position,
@@ -1124,7 +1142,7 @@ const getSingleCourseForPaidView = async (req: Request) => {
             type: l.type,
             contentUrl: l.contentUrl,
             files: l.files,
-            lessonProgress: l.progressRecords
+            lessonProgress: l.progressRecords,
           };
         }),
       };
@@ -1538,24 +1556,29 @@ const getCartCourses = async (req: Request) => {
 };
 
 const updateLessonProgress = async (req: Request) => {
-  const { userId } = req.params as {userId: string;};
-  const {courseId, lessonId, progressValue, isFinished} = req.body as {courseId: string; lessonId: string; progressValue: number; isFinished: boolean};
+  const { userId } = req.params as { userId: string };
+  const { courseId, lessonId, progressValue, isFinished } = req.body as {
+    courseId: string;
+    lessonId: string;
+    progressValue: number;
+    isFinished: boolean;
+  };
 
-  if(!userId){
-    throw new Error("User Id not found");
+  if (!userId) {
+    throw new Error('User Id not found');
   }
-  if(!courseId){
-    throw new Error("Course Id not found");
+  if (!courseId) {
+    throw new Error('Course Id not found');
   }
-  if(!lessonId){
-    throw new Error("Lesson Id not found");
+  if (!lessonId) {
+    throw new Error('Lesson Id not found');
   }
 
-  const updateData = await executeDbOperation(async prisma=> {
-    return await prisma.$transaction(async tx=> {
+  const updateData = await executeDbOperation(async prisma => {
+    return await prisma.$transaction(async tx => {
       const lessonProgress = await tx.lessonProgress.upsert({
         where: {
-          userId_lessonId: { userId, lessonId }
+          userId_lessonId: { userId, lessonId },
         },
         update: {
           progressValue,
@@ -1571,7 +1594,7 @@ const updateLessonProgress = async (req: Request) => {
           completed: isFinished,
           completedAt: isFinished ? new Date() : null,
           lastViewedAt: new Date(),
-        }
+        },
       });
     });
   });
