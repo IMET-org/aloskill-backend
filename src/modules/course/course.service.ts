@@ -1017,14 +1017,16 @@ const getSingleCourseForPublicView = async (req: Request) => {
 };
 
 const getSingleCourseForPaidView = async (req: Request) => {
-  const user = req.user;
-  if (!user) {
-    throw new Error('User not authenticated');
-  }
+  const { courseId, userId } = req.params;
 
-  const { courseId } = req.params;
+  if (!courseId || !userId) {
+    throw new Error('Required data not found for this request');
+  }
   if (typeof courseId !== 'string') {
     throw new Error('A valid Course ID must be provided');
+  }
+  if (typeof userId !== 'string') {
+    throw new Error('A valid User ID must be provided');
   }
   const getCourseDetails = await executeDbOperation(async prisma => {
     return await prisma.course.findFirst({
@@ -1032,7 +1034,7 @@ const getSingleCourseForPaidView = async (req: Request) => {
         id: courseId,
         enrollments: {
           some: {
-            userId: user.id,
+            userId,
             status: EnrollmentStatus.ACTIVE,
           },
         },
@@ -1067,6 +1069,9 @@ const getSingleCourseForPaidView = async (req: Request) => {
                   },
                 },
                 progressRecords: {
+                  where:{
+                    userId,
+                  },
                   select: {
                     completed: true,
                     progressValue: true,

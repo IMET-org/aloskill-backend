@@ -57,7 +57,7 @@ router.get('/public/viewCourse/:courseId', courseController.getSingleCourseForPu
 router.post('/get-cart-courses', requireAuth, courseController.getCartCourses);
 
 router.get(
-  '/private/viewCourse/:courseId',
+  '/private/viewCourse/:courseId/:userId',
   requireStudent,
   courseController.getSingleCourseForPaidView
 );
@@ -68,9 +68,9 @@ router.get(
   courseController.getSingleCourseForInstructorEdit
 );
 
-router.get('/category', courseController.getCategories);
+router.get('/category', requireStudent, courseController.getCategories);
 
-router.get('/slug-check/:slug', courseController.checkCourseSlugAvailability);
+router.get('/slug-check/:slug', requireStudent, courseController.checkCourseSlugAvailability);
 
 router.get(
   '/instructors',
