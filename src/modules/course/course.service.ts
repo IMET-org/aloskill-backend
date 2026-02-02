@@ -1568,8 +1568,6 @@ const updateLessonProgress = async (req: Request) => {
     progressValue: number;
     isFinished: boolean;
   };
-  const userId = req.params.userId as string;
-  const {courseId, lessonId, progressValue, isFinished} = req.body as {courseId: string; lessonId: string; progressValue: number; isFinished: boolean};
 
   if (!userId) {
     throw new Error('User Id not found');
@@ -1607,28 +1605,7 @@ const updateLessonProgress = async (req: Request) => {
       });
     });
   });
-  const updateData = await executeDbOperation(async prisma=> {
-    return await prisma.lessonProgress.upsert({
-      where: {
-        userId_lessonId: { userId, lessonId }
-      },
-      update: {
-        progressValue,
-        lastViewedAt: new Date(),
-        completed: isFinished,
-        completedAt: isFinished ? new Date() : undefined,
-      },
-      create: {
-        userId,
-        lessonId,
-        courseId,
-        progressValue,
-        completed: isFinished,
-        completedAt: isFinished ? new Date() : null,
-        lastViewedAt: new Date(),
-      }
-    });
-  });
+  
 
   if(!updateData.id) {
     throw new Error("Failed to update lesson");
