@@ -1567,7 +1567,7 @@ const updateLessonProgress = async (req: Request) => {
   });
 
   if(!updateData.id) {
-    throw new Error("Failed to update lesson");
+    throw new Error("Failed to update lesson for lessonProgress");
   }
   return lessonId;
 };
