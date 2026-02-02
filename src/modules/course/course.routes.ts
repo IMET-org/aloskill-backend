@@ -85,7 +85,7 @@ router.post('/bunny-signature', requireInstructor, courseController.getBunnySign
 
 router.post(
   '/file-upload',
-  requireStudent,
+  requireInstructor,
   (req, res, next) => {
     upload.single('file')(req, res, next);
   },
@@ -113,6 +113,6 @@ router.delete(
   courseController.deleteVideo
 );
 
-router.patch("/update-lesson/:userId", requireInstructor, courseController.updateLessonProgress);
+router.patch('/update-lesson/:userId', requireStudent, courseController.updateLessonProgress);
 
 export const CourseRoutes = router;
