@@ -672,8 +672,6 @@ const getAllCoursesForStudent = async (req: Request) => {
         id: true,
         title: true,
         thumbnailUrl: true,
-        originalPrice: true,
-        discountPrice: true,
         LessonProgress: {
           select: {
             completed: true,
@@ -1046,15 +1044,6 @@ const getSingleCourseForPaidView = async (req: Request) => {
         createdAt: true,
         updatedAt: true,
 
-        LessonProgress: {
-          select: {
-            completed: true,
-            progressValue: true,
-            lastViewedAt: true,
-            completedAt: true,
-          },
-        },
-
         modules: {
           orderBy: { position: 'asc' },
           select: {
@@ -1114,7 +1103,6 @@ const getSingleCourseForPaidView = async (req: Request) => {
       totalLessons: getCourseDetails.modules.reduce((acc, m) => acc + m.lessons.length, 0),
       totalDuration: formattedDuration,
     },
-    courseProgress: getCourseDetails.LessonProgress,
     modules: getCourseDetails.modules.map(m => {
       const totalSeconds = m.lessons.reduce((acc, l) => acc + (l.duration ?? 0), 0);
       const totalDurationForModule = `${Math.floor(totalSeconds / 3600)}:${Math.floor(
@@ -1122,9 +1110,6 @@ const getSingleCourseForPaidView = async (req: Request) => {
       )
         .toString()
         .padStart(2, '0')}`;
-    modules: getCourseDetails.modules.map(m =>{
-      const totalSeconds =  m.lessons.reduce((acc, l) => acc + (l.duration ?? 0), 0);
-      const totalDurationForModule = `${Math.floor(totalSeconds / 3600)}:${Math.floor((totalSeconds % 3600) / 60).toString().padStart(2, '0')}`;
       return {
         isExpanded: false,
         position: m.position,
@@ -1561,7 +1546,7 @@ const getCartCourses = async (req: Request) => {
 };
 
 const updateLessonProgress = async (req: Request) => {
-  const { userId } = req.params as { userId: string };
+  const userId = req.params.userId as string;
   const { courseId, lessonId, progressValue, isFinished } = req.body as {
     courseId: string;
     lessonId: string;
@@ -1570,9 +1555,7 @@ const updateLessonProgress = async (req: Request) => {
   };
 
   if (!userId) {
-    throw new Error('User Id not found');
-  if(!userId){
-    throw new Error("User not found");
+    throw new Error('User not found');
   }
   if (!courseId) {
     throw new Error('Course Id not found');
@@ -1582,33 +1565,30 @@ const updateLessonProgress = async (req: Request) => {
   }
 
   const updateData = await executeDbOperation(async prisma => {
-    return await prisma.$transaction(async tx => {
-      const lessonProgress = await tx.lessonProgress.upsert({
-        where: {
-          userId_lessonId: { userId, lessonId },
-        },
-        update: {
-          progressValue,
-          lastViewedAt: new Date(),
-          completed: isFinished,
-          completedAt: isFinished ? new Date() : undefined,
-        },
-        create: {
-          userId,
-          lessonId,
-          courseId,
-          progressValue,
-          completed: isFinished,
-          completedAt: isFinished ? new Date() : null,
-          lastViewedAt: new Date(),
-        },
-      });
+    return await prisma.lessonProgress.upsert({
+      where: {
+        userId_lessonId: { userId, lessonId },
+      },
+      update: {
+        progressValue,
+        lastViewedAt: new Date(),
+        completed: isFinished,
+        completedAt: isFinished ? new Date() : undefined,
+      },
+      create: {
+        userId,
+        lessonId,
+        courseId,
+        progressValue,
+        completed: isFinished,
+        completedAt: isFinished ? new Date() : null,
+        lastViewedAt: new Date(),
+      },
     });
   });
-  
 
-  if(!updateData.id) {
-    throw new Error("Failed to update lesson for lessonProgress");
+  if (!updateData.id) {
+    throw new Error('Failed to update lesson for lessonProgress');
   }
   return lessonId;
 };
