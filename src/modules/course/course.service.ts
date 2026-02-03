@@ -838,6 +838,7 @@ const getSingleCourseForPublicView = async (req: Request) => {
             instructorId: true,
             instructor: {
               select: {
+                userId: true,
                 ratingAverage: true,
                 displayName: true,
                 bio: true,
@@ -959,6 +960,7 @@ const getSingleCourseForPublicView = async (req: Request) => {
       category: course.category?.name,
       courseInstructors: course.courseInstructors.map(i => ({
         instructorId: i.instructorId,
+        userId: i.instructor.userId,
         bio:
           i.instructor.bio.length >= 150
             ? `${i.instructor.bio.substring(0, 150)}...`
@@ -1069,7 +1071,7 @@ const getSingleCourseForPaidView = async (req: Request) => {
                   },
                 },
                 progressRecords: {
-                  where:{
+                  where: {
                     userId,
                   },
                   select: {
