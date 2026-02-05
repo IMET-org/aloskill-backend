@@ -1075,6 +1075,7 @@ const getSingleCourseForPaidView = async (req: Request) => {
                   select: {
                     completed: true,
                     progressValue: true,
+                    lastPosition: true,
                     lastViewedAt: true,
                     completedAt: true,
                   },
@@ -1552,10 +1553,11 @@ const getCartCourses = async (req: Request) => {
 
 const updateLessonProgress = async (req: Request) => {
   const userId = req.params.userId as string;
-  const { courseId, lessonId, progressValue, isFinished } = req.body as {
+  const { courseId, lessonId, progressValue, lastPosition, isFinished } = req.body as {
     courseId: string;
     lessonId: string;
     progressValue: number;
+    lastPosition: number;
     isFinished: boolean;
   };
 
@@ -1585,6 +1587,7 @@ const updateLessonProgress = async (req: Request) => {
         lessonId,
         courseId,
         progressValue,
+        lastPosition,
         completed: isFinished,
         completedAt: isFinished ? new Date() : null,
         lastViewedAt: new Date(),

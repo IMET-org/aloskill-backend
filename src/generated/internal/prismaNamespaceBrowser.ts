@@ -442,6 +442,7 @@ export const LessonProgressScalarFieldEnum = {
   courseId: 'courseId',
   completed: 'completed',
   progressValue: 'progressValue',
+  lastPosition: 'lastPosition',
   lastViewedAt: 'lastViewedAt',
   attempts: 'attempts',
   completedAt: 'completedAt',
