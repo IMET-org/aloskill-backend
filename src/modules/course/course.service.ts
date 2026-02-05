@@ -938,7 +938,7 @@ const getSingleCourseForPublicView = async (req: Request) => {
     const hours = Math.floor(totalDuration / 3600);
     const minutes = Math.floor((totalDuration % 3600) / 60);
     const totalDurationInFormatted = `${hours}:${minutes.toString().padStart(2, '0')} mins`;
-
+    console.log('total sec :::', totalDuration);
     return {
       id: course.id,
       title: course.title,
