@@ -119,7 +119,7 @@ const createPayment = async (req: Request) => {
       };
     });
   });
-  if(!createOrder){
+  if(!createOrder.id){
     throw new Error("Failed to create order");
   }
   if (!createOrder.id) {
@@ -141,8 +141,8 @@ const createPayment = async (req: Request) => {
       success_url: `${config.FRONTEND_URL}/payment/success`,
       fail_url: `${config.FRONTEND_URL}/payment/fail`,
       cancel_url: `${config.FRONTEND_URL}/payment/cancel`,
-      ipn_url: `https://aloskill-backend-production.up.railway.app/api/v1/order/validate-ipn`,
-      // ipn_url: `https://fortunate-kindness-production.up.railway.app/api/v1/order/validate-ipn`,
+      // ipn_url: `https://aloskill-backend-production.up.railway.app/api/v1/order/validate-ipn`,
+      ipn_url: `https://fortunate-kindness-production.up.railway.app/api/v1/order/validate-ipn`,
       ...(paymentMethod ? { multi_card_name: paymentMethod } : {}),
       cus_email: userEmail,
       cus_phone: userPhone,
