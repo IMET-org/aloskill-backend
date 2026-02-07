@@ -68,7 +68,7 @@ router.get(
   courseController.getSingleCourseForInstructorEdit
 );
 
-router.get('/category', requireStudent, courseController.getCategories);
+router.get('/category', courseController.getCategories);
 
 router.get('/slug-check/:slug', requireStudent, courseController.checkCourseSlugAvailability);
 
@@ -86,6 +86,14 @@ router.post('/bunny-signature', requireInstructor, courseController.getBunnySign
 router.post(
   '/file-upload',
   requireStudent,
+  (req, res, next) => {
+    upload.single('file')(req, res, next);
+  },
+  courseController.createFileToBunny
+);
+
+router.post(
+  '/instructor-file-upload',
   (req, res, next) => {
     upload.single('file')(req, res, next);
   },

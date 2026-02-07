@@ -723,12 +723,27 @@ const getAllCoursesForStudent = async (req: Request) => {
 
 const getAllCoursesForPublic = async (req: Request) => {
   const { take, page, isHome, category, level, language, rating, priceMin, priceMax } = req.query;
+
+  const categoryIds = await executeDbOperation(async (prisma) => {
+    if (!category) {return [];}
+
+    const parentCategory = await prisma.category.findFirst({
+      where: { name: category as string },
+      select: {
+        children: { select: { id: true } },
+      },
+    });
+
+    if (!parentCategory) {return [];}
+    return [...parentCategory.children.map((child) => child.id)];
+  });
+
   const getCourses = await executeDbOperation(async prisma => {
     return await prisma.course.findMany({
       where: {
         status: CourseStatus.PUBLISHED,
         deletedAt: null,
-        ...(category && { category: { name: category as string } }),
+        ...(categoryIds.length > 0 && { categoryId: { in: categoryIds } }),
         ...(language && {
           language: language === 'bangla' ? Language.BANGLA : Language.ENGLISH,
         }),
