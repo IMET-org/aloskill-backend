@@ -724,6 +724,8 @@ const getAllCoursesForStudent = async (req: Request) => {
 const getAllCoursesForPublic = async (req: Request) => {
   const { take, page, isHome, category, level, language, rating, priceMin, priceMax } = req.query;
 
+  const user = req.user;
+
   const categoryIds = await executeDbOperation(async (prisma) => {
     if (!category) {return [];}
 
@@ -806,6 +808,16 @@ const getAllCoursesForPublic = async (req: Request) => {
             },
           },
         },
+        enrollments:{
+          where: {
+            user: {
+              email: user.email
+            }
+          },
+          select: {
+            userId: true
+          }
+        }
       },
       ...(page && { skip: (Number(page) - 1) * Number(take) }),
       ...(take && { take: Number(take) }),
