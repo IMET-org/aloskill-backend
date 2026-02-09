@@ -125,6 +125,7 @@ const getAllUsers = async () => {
 
 const getSingleInstructor = async (req: Request) => {
   const { id } = req.params;
+  const { userId } = req.query;
   if (!id || typeof id !== 'string') {
     throw new Error('A valid User ID string must be provided');
   }
@@ -194,6 +195,16 @@ const getSingleInstructor = async (req: Request) => {
                     lessons: true,
                   },
                 },
+              },
+            },
+            enrollments: {
+              where: {
+                user: {
+                  id: userId as string,
+                },
+              },
+              select: {
+                userId: true,
               },
             },
           },

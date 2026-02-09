@@ -814,7 +814,7 @@ const getAllCoursesForPublic = async (req: Request) => {
         enrollments: {
           where: {
             user: {
-              id: userId ? (userId as string) : '',
+              id: userId as string,
             },
           },
           select: {
