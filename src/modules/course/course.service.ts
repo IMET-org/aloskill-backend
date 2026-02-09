@@ -724,10 +724,11 @@ const getAllCoursesForStudent = async (req: Request) => {
 const getAllCoursesForPublic = async (req: Request) => {
   const { take, page, isHome, category, level, language, rating, priceMin, priceMax } = req.query;
 
-  const user = req.user;
-
-  const categoryIds = await executeDbOperation(async (prisma) => {
-    if (!category) {return [];}
+  const reqUser = req.user;
+  const categoryIds = await executeDbOperation(async prisma => {
+    if (!category) {
+      return [];
+    }
 
     const parentCategory = await prisma.category.findFirst({
       where: { name: category as string },
@@ -736,8 +737,10 @@ const getAllCoursesForPublic = async (req: Request) => {
       },
     });
 
-    if (!parentCategory) {return [];}
-    return [...parentCategory.children.map((child) => child.id)];
+    if (!parentCategory) {
+      return [];
+    }
+    return [...parentCategory.children.map(child => child.id)];
   });
 
   const getCourses = await executeDbOperation(async prisma => {
@@ -808,16 +811,16 @@ const getAllCoursesForPublic = async (req: Request) => {
             },
           },
         },
-        enrollments:{
+        enrollments: {
           where: {
             user: {
-              email: user.email
-            }
+              email: reqUser ? reqUser.email : '',
+            },
           },
           select: {
-            userId: true
-          }
-        }
+            userId: true,
+          },
+        },
       },
       ...(page && { skip: (Number(page) - 1) * Number(take) }),
       ...(take && { take: Number(take) }),
