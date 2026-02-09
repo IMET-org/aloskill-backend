@@ -6,6 +6,7 @@ import { validate } from '../../middleware/validation.js';
 import { courseController } from './course.controller.js';
 import {
   CreateCourseSchema,
+  GetAndDeleteFileSchema,
   GetAndDeleteVideoSchema,
   GetSecureVideoToken,
 } from './course.validation.js';
@@ -119,6 +120,13 @@ router.delete(
   requireInstructor,
   validate(GetAndDeleteVideoSchema),
   courseController.deleteVideo
+);
+
+router.delete(
+  '/delete-file',
+  requireInstructor,
+  validate(GetAndDeleteFileSchema),
+  courseController.deleteFile
 );
 
 router.patch('/update-lesson/:userId', requireStudent, courseController.updateLessonProgress);

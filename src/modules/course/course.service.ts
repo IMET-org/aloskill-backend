@@ -722,9 +722,9 @@ const getAllCoursesForStudent = async (req: Request) => {
 };
 
 const getAllCoursesForPublic = async (req: Request) => {
-  const { take, page, isHome, category, level, language, rating, priceMin, priceMax } = req.query;
+  const { take, page, isHome, category, level, language, rating, priceMin, priceMax, userId } =
+    req.query;
 
-  const reqUser = req.user;
   const categoryIds = await executeDbOperation(async prisma => {
     if (!category) {
       return [];
@@ -814,7 +814,7 @@ const getAllCoursesForPublic = async (req: Request) => {
         enrollments: {
           where: {
             user: {
-              email: reqUser ? reqUser.email : '',
+              id: userId ? (userId as string) : '',
             },
           },
           select: {
@@ -1719,7 +1719,7 @@ const createFileToBunny = async (req: Request) => {
   const fileName = `${timestamp}-${uniqueId}-${req.file?.originalname}`;
   const storageZone = config.BUNNY_STORAGE_ZONE_USERNAME;
   const accessKey = config.BUNNY_STORAGE_ZONE_PASSWORD;
-  const pullZone = config.BUNNY_PULL_ZONE;
+  // const pullZone = config.BUNNY_PULL_ZONE;
   const safePath = encodeURI(folder.replace(/^\/+|\/+$/g, '').replace(/\/+/g, '/'));
 
   const uploadfile = await fetch(`https://${HOSTNAME}/${storageZone}/${safePath}/${fileName}`, {
@@ -1734,8 +1734,7 @@ const createFileToBunny = async (req: Request) => {
     const errorText = await uploadfile.text();
     throw new Error(`Bunny Storage API Error: ${errorText}`);
   }
-
-  return `https://${pullZone}/${safePath}/${fileName}`;
+  return `https://sg.storage.bunnycdn.com/${storageZone}/${safePath}/${fileName}`;
 };
 
 const getVideo = async (req: Request) => {
@@ -1799,6 +1798,27 @@ const deleteVideo = async (req: Request) => {
   return false;
 };
 
+const deleteFile = async (req: Request) => {
+  const { fileUrl } = req.body as { fileUrl: string };
+  if (!fileUrl) {
+    throw new Error('File path not provided');
+  }
+
+  const response = await fetch(fileUrl, {
+    method: 'DELETE',
+    headers: {
+      AccessKey: config.BUNNY_STORAGE_ZONE_PASSWORD,
+      accept: 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    return false;
+  }
+
+  return true;
+};
+
 export const courseService = {
   isCourseSlugAvailable,
   createCourse,
@@ -1819,5 +1839,6 @@ export const courseService = {
   getCartCourses,
   deleteVideo,
   getVideo,
+  deleteFile,
   getSecureVideoToken,
 };
