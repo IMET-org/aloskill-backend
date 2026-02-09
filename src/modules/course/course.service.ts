@@ -724,7 +724,7 @@ const getAllCoursesForStudent = async (req: Request) => {
 const getAllCoursesForPublic = async (req: Request) => {
   const { take, page, isHome, category, level, language, rating, priceMin, priceMax, userId } =
     req.query;
-
+  console.log('user-id::', userId);
   const categoryIds = await executeDbOperation(async prisma => {
     if (!category) {
       return [];
@@ -814,7 +814,7 @@ const getAllCoursesForPublic = async (req: Request) => {
         enrollments: {
           where: {
             user: {
-              id: userId ? (userId as string) : '',
+              id: userId as string,
             },
           },
           select: {
