@@ -300,6 +300,12 @@ export const GetAndDeleteVideoSchema = z.object({
   }),
 });
 
+export const GetAndDeleteFileSchema = z.object({
+  body: z.object({
+    fileUrl: z.string(),
+  }),
+});
+
 export const GetSecureVideoToken = z.object({
   body: z.object({
     filePath: z.string(),

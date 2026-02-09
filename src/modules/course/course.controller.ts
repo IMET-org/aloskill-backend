@@ -156,6 +156,15 @@ const deleteVideo = catchAsync(async (req, res): Promise<void> => {
   }
 });
 
+const deleteFile = catchAsync(async (req, res): Promise<void> => {
+  const result = await courseService.deleteFile(req);
+  if (result) {
+    ResponseHandler.ok(res, 'File deleted successfully');
+  } else {
+    ResponseHandler.badRequest(res, 'Something went wrong while deleting File!');
+  }
+});
+
 export const courseController = {
   getBunnySignature,
   createCourse,
@@ -175,6 +184,7 @@ export const courseController = {
   getSingleCourseForInstructorEdit,
   getCartCourses,
   deleteVideo,
+  deleteFile,
   getVideo,
   getSecureVideoToken,
 };
