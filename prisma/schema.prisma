@@ -721,6 +721,7 @@ model LessonProgress {
 
   completed     Boolean   @default(false)
   progressValue Int       @default(0)
+  lastPosition  Decimal   @db.Decimal(6,2)
   lastViewedAt  DateTime?
   attempts      Int?      @default(0)
   completedAt   DateTime?

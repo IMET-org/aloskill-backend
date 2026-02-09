@@ -163,9 +163,25 @@ const getSingleInstructor = async (req: Request) => {
             thumbnailUrl: true,
             originalPrice: true,
             discountPrice: true,
-            discountEndDate: true,
-            ratingAverage: true,
-            enrollmentCount: true,
+            status: true,
+            createdAt: true,
+            category: {
+              select: {
+                name: true,
+              },
+            },
+            createdBy: {
+              select: {
+                displayName: true,
+                user: { select: { avatarUrl: true } },
+              },
+            },
+            _count: {
+              select: {
+                enrollments: true,
+                reviews: true,
+              },
+            },
             modules: {
               select: {
                 lessons: {
@@ -178,15 +194,6 @@ const getSingleInstructor = async (req: Request) => {
                     lessons: true,
                   },
                 },
-              },
-            },
-            reviews: {
-              select: {
-                userId: true,
-                rating: true,
-                title: true,
-                courseId: true,
-                createdAt: true,
               },
             },
           },
@@ -223,32 +230,33 @@ const getSingleInstructor = async (req: Request) => {
     socialAccounts: instructor.socialAccount,
 
     // Courses
-    ownedCourses: instructor.ownedCourses.map(course => {
-      let totalLessonCount = 0;
-      let totalDurationInMinutes = 0;
+    // ownedCourses: instructor.ownedCourses.map(course => {
+    //   let totalLessonCount = 0;
+    //   let totalDurationInMinutes = 0;
 
-      course.modules.forEach(module => {
-        totalLessonCount += module._count.lessons;
-        // Sum Lesson Durations
-        module.lessons.forEach(lesson => {
-          totalDurationInMinutes += lesson.duration ?? 0;
-        });
-      });
+    //   course.modules.forEach(module => {
+    //     totalLessonCount += module._count.lessons;
+    //     // Sum Lesson Durations
+    //     module.lessons.forEach(lesson => {
+    //       totalDurationInMinutes += lesson.duration ?? 0;
+    //     });
+    //   });
 
-      return {
-        id: course.id,
-        title: course.title,
-        thumbnailUrl: course.thumbnailUrl,
-        originalPrice: course.originalPrice,
-        discountPrice: course.discountPrice ?? null,
-        discountEndDate: course.discountEndDate,
-        ratingAverage: course.ratingAverage ?? null,
-        enrollmentCount: course.enrollmentCount,
-        totalLessonCount,
-        totalCourseDuration: totalDurationInMinutes,
-        reviews: course.reviews,
-      };
-    }),
+    //   return {
+    //     id: course.id,
+    //     title: course.title,
+    //     thumbnailUrl: course.thumbnailUrl,
+    //     originalPrice: course.originalPrice,
+    //     discountPrice: course.discountPrice ?? null,
+    //     discountEndDate: course.discountEndDate,
+    //     ratingAverage: course.ratingAverage ?? null,
+    //     enrollmentCount: course.enrollmentCount,
+    //     totalLessonCount,
+    //     totalCourseDuration: totalDurationInMinutes,
+    //     reviews: course.reviews,
+    //   };
+    // }),
+    ownedCourses: instructor.ownedCourses,
   };
 };
 

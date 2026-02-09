@@ -122,6 +122,9 @@ const createPayment = async (req: Request) => {
   if (!createOrder.id) {
     throw new Error('Failed to create order');
   }
+  if (!createOrder.id) {
+    throw new Error('Failed to create order');
+  }
   const orderId = createOrder.orderData.id;
   const amount = createOrder.orderData.totalAmount.toString();
   const userPhone = createOrder.phoneNumber;
@@ -135,10 +138,11 @@ const createPayment = async (req: Request) => {
       total_amount: amount,
       currency: 'BDT',
       tran_id: orderId,
-      success_url: `${config.FRONTEND_URL}/payment/success`,
+      success_url: `${config.FRONTEND_URL}/`,
       fail_url: `${config.FRONTEND_URL}/payment/fail`,
       cancel_url: `${config.FRONTEND_URL}/payment/cancel`,
-      ipn_url: `https://aloskill-backend-production.up.railway.app/api/v1/order/validate-ipn`,
+      ipn_url: `${config.IPN_VALIDATION_URL}`,
+      // ipn_url: `https://aloskill-backend-production.up.railway.app/api/v1/order/validate-ipn`,
       // ipn_url: `https://fortunate-kindness-production.up.railway.app/api/v1/order/validate-ipn`,
       ...(paymentMethod ? { multi_card_name: paymentMethod } : {}),
       cus_email: userEmail,

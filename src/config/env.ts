@@ -14,6 +14,9 @@ const envSchema = z.object({
   DATABASE_URL: z
     .url({ message: 'Invalid HTTP(S) URL' })
     .default(process.env.DATABASE_URL as string),
+  IPN_VALIDATION_URL: z
+    .url({ message: 'Invalid HTTP(S) URL of IPN' })
+    .default(process.env.IPN_VALIDATION_URL as string),
   FRONTEND_URL: z
     .url({
       message: 'Invalid HTTP(S) URL',

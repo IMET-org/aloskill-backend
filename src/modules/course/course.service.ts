@@ -621,14 +621,134 @@ const getAllCoursesForInstructor = async (req: Request) => {
   return getCourses;
 };
 
+const getAllCoursesForStudent = async (req: Request) => {
+  const userId = req.query.userId as string;
+  if (!userId) {
+    throw new Error('User Not Provided');
+  }
+
+  const userExist = await executeDbOperation(async prisma => {
+    return await prisma.user.findUnique({
+      where: {
+        id: userId,
+        deletedAt: null,
+        status: UserStatus.ACTIVE,
+      },
+      select: {
+        id: true,
+        studentProfile: {
+          select: {
+            id: true,
+            deletedAt: true,
+          },
+        },
+      },
+    });
+  }, 'Find User in GetAllCourses for student');
+
+  if (!userExist) {
+    throw new Error('User Doesnt Exist');
+  }
+  if (userExist.studentProfile === null) {
+    throw new Error('User Is Not An Instructor');
+  }
+  if (userExist.studentProfile.deletedAt !== null) {
+    throw new Error('User Has Been Deleted');
+  }
+
+  const getCourses = await executeDbOperation(async prisma => {
+    return await prisma.course.findMany({
+      where: {
+        enrollments: {
+          some: {
+            userId: userExist.id,
+            status: EnrollmentStatus.ACTIVE,
+          },
+        },
+        deletedAt: null,
+      },
+      orderBy: [{ createdAt: 'desc' }],
+      select: {
+        id: true,
+        title: true,
+        thumbnailUrl: true,
+        LessonProgress: {
+          select: {
+            completed: true,
+            progressValue: true,
+            lastViewedAt: true,
+            completedAt: true,
+          },
+        },
+        createdBy: {
+          select: {
+            displayName: true,
+            user: { select: { avatarUrl: true } },
+          },
+        },
+        category: {
+          select: {
+            name: true,
+          },
+        },
+        _count: {
+          select: {
+            enrollments: true,
+            reviews: true,
+          },
+        },
+        modules: {
+          select: {
+            lessons: {
+              select: {
+                duration: true,
+              },
+            },
+            _count: {
+              select: {
+                lessons: true,
+              },
+            },
+          },
+        },
+      },
+    });
+  }, 'Get All Associated Courses for students');
+
+  if (getCourses.length === 0) {
+    throw new Error('No Courses Found');
+  }
+  return getCourses;
+};
+
 const getAllCoursesForPublic = async (req: Request) => {
-  const { take, page, isHome, category, level, language, rating, priceMin, priceMax } = req.query;
+  const { take, page, isHome, category, level, language, rating, priceMin, priceMax, userId } =
+    req.query;
+
+  const categoryIds = await executeDbOperation(async prisma => {
+    if (!category) {
+      return [];
+    }
+
+    const parentCategory = await prisma.category.findFirst({
+      where: { name: category as string },
+      select: {
+        children: { select: { id: true } },
+      },
+    });
+
+    if (!parentCategory) {
+      return [];
+    }
+    return [...parentCategory.children.map(child => child.id)];
+  });
+
   const getCourses = await executeDbOperation(async prisma => {
     return await prisma.course.findMany({
       where: {
         status: CourseStatus.PUBLISHED,
         deletedAt: null,
-        ...(category && { category: { name: category as string } }),
+        ...(categoryIds.length > 0 && { categoryId: { in: categoryIds } }),
         ...(language && {
           language: language === 'bangla' ? Language.BANGLA : Language.ENGLISH,
         }),
@@ -691,6 +811,16 @@ const getAllCoursesForPublic = async (req: Request) => {
             },
           },
         },
+        enrollments: {
+          where: {
+            user: {
+              id: userId ? (userId as string) : '',
+            },
+          },
+          select: {
+            userId: true,
+          },
+        },
       },
       ...(page && { skip: (Number(page) - 1) * Number(take) }),
       ...(take && { take: Number(take) }),
@@ -738,6 +868,7 @@ const getSingleCourseForPublicView = async (req: Request) => {
             instructorId: true,
             instructor: {
               select: {
+                userId: true,
                 ratingAverage: true,
                 displayName: true,
                 bio: true,
@@ -812,17 +943,11 @@ const getSingleCourseForPublicView = async (req: Request) => {
 
     course.modules.forEach(module => {
       module.lessons.forEach(lesson => {
-        if (lesson.type === 'VIDEO') {
-          totalDuration += lesson.duration ?? 0;
-        }
         if (lesson.type === 'ARTICLE') {
-          totalDuration += lesson.duration ?? 0;
           totalArticles++;
         }
-        if (lesson.type === 'QUIZ') {
-          totalDuration += lesson.duration ?? 0;
-        }
         totalFiles += lesson.files.length;
+        totalDuration += lesson.duration ?? 0;
       });
     });
 
@@ -843,7 +968,7 @@ const getSingleCourseForPublicView = async (req: Request) => {
     const hours = Math.floor(totalDuration / 3600);
     const minutes = Math.floor((totalDuration % 3600) / 60);
     const totalDurationInFormatted = `${hours}:${minutes.toString().padStart(2, '0')} mins`;
-
+    console.log('total sec :::', totalDuration);
     return {
       id: course.id,
       title: course.title,
@@ -865,6 +990,7 @@ const getSingleCourseForPublicView = async (req: Request) => {
       category: course.category?.name,
       courseInstructors: course.courseInstructors.map(i => ({
         instructorId: i.instructorId,
+        userId: i.instructor.userId,
         bio:
           i.instructor.bio.length >= 150
             ? `${i.instructor.bio.substring(0, 150)}...`
@@ -891,13 +1017,25 @@ const getSingleCourseForPublicView = async (req: Request) => {
         totalFiles,
       },
       modules: course.modules.map(m => {
+        const totalSeconds = m.lessons.reduce((a, b) => (b.duration ?? 0) + a, 0);
+        const totalDurationForModule = `${Math.floor(totalSeconds / 3600)}:${Math.floor(
+          (totalSeconds % 3600) / 60
+        )
+          .toString()
+          .padStart(2, '0')}`;
         return {
           title: m.title,
-          duration: m.lessons.reduce((a, b) => (b.duration ?? 0) + a, 0),
+          duration: totalDurationForModule,
           lessons: m.lessons.map(l => {
+            const totalLessonDuration = l.duration ?? 0;
+            const totalDurationForLesson = `${Math.floor(totalLessonDuration / 3600)}:${Math.floor(
+              (totalLessonDuration % 3600) / 60
+            )
+              .toString()
+              .padStart(2, '0')}`;
             return {
               title: l.title,
-              duration: l.duration,
+              duration: totalDurationForLesson,
               type: l.type,
               contentUrl: m.position === 1 && l.position < 3 ? l.contentUrl : null,
             };
@@ -911,14 +1049,16 @@ const getSingleCourseForPublicView = async (req: Request) => {
 };
 
 const getSingleCourseForPaidView = async (req: Request) => {
-  const user = req.user;
-  if (!user) {
-    throw new Error('User not authenticated');
-  }
+  const { courseId, userId } = req.params;
 
-  const { courseId } = req.params;
+  if (!courseId || !userId) {
+    throw new Error('Required data not found for this request');
+  }
   if (typeof courseId !== 'string') {
     throw new Error('A valid Course ID must be provided');
+  }
+  if (typeof userId !== 'string') {
+    throw new Error('A valid User ID must be provided');
   }
   const getCourseDetails = await executeDbOperation(async prisma => {
     return await prisma.course.findFirst({
@@ -926,13 +1066,14 @@ const getSingleCourseForPaidView = async (req: Request) => {
         id: courseId,
         enrollments: {
           some: {
-            userId: user.id,
+            userId,
             status: EnrollmentStatus.ACTIVE,
           },
         },
         deletedAt: null,
       },
       select: {
+        id: true,
         title: true,
         createdAt: true,
         updatedAt: true,
@@ -945,6 +1086,7 @@ const getSingleCourseForPaidView = async (req: Request) => {
             lessons: {
               orderBy: { position: 'asc' },
               select: {
+                id: true,
                 position: true,
                 contentUrl: true,
                 title: true,
@@ -956,6 +1098,18 @@ const getSingleCourseForPaidView = async (req: Request) => {
                   select: {
                     name: true,
                     url: true,
+                  },
+                },
+                progressRecords: {
+                  where: {
+                    userId,
+                  },
+                  select: {
+                    completed: true,
+                    progressValue: true,
+                    lastPosition: true,
+                    lastViewedAt: true,
+                    completedAt: true,
                   },
                 },
               },
@@ -979,6 +1133,7 @@ const getSingleCourseForPaidView = async (req: Request) => {
   const formattedDuration = `${hours}h ${minutes.toString().padStart(2, '0')}m`;
 
   return {
+    id: getCourseDetails.id,
     title: getCourseDetails.title,
     createdAt: getCourseDetails.createdAt,
     updatedAt: getCourseDetails.updatedAt,
@@ -986,22 +1141,40 @@ const getSingleCourseForPaidView = async (req: Request) => {
       totalLessons: getCourseDetails.modules.reduce((acc, m) => acc + m.lessons.length, 0),
       totalDuration: formattedDuration,
     },
-    modules: getCourseDetails.modules.map(m => ({
-      isExpanded: false,
-      position: m.position,
-      title: m.title,
-      moduleDuration: m.lessons.reduce((acc, l) => acc + (l.duration ?? 0), 0),
-      lessons: m.lessons.map(l => ({
-        position: l.position,
-        title: l.title,
-        description: l.description,
-        notes: l.notes,
-        duration: l.duration,
-        type: l.type,
-        contentUrl: l.contentUrl,
-        files: l.files,
-      })),
-    })),
+    modules: getCourseDetails.modules.map(m => {
+      const totalSeconds = m.lessons.reduce((acc, l) => acc + (l.duration ?? 0), 0);
+      const totalDurationForModule = `${Math.floor(totalSeconds / 3600)}:${Math.floor(
+        (totalSeconds % 3600) / 60
+      )
+        .toString()
+        .padStart(2, '0')}`;
+      return {
+        isExpanded: false,
+        position: m.position,
+        title: m.title,
+        moduleDuration: totalDurationForModule,
+        lessons: m.lessons.map(l => {
+          const totalLessonDuration = l.duration ?? 0;
+          const totalDurationForLesson = `${Math.floor(totalLessonDuration / 3600)}:${Math.floor(
+            (totalLessonDuration % 3600) / 60
+          )
+            .toString()
+            .padStart(2, '0')}`;
+          return {
+            id: l.id,
+            position: l.position,
+            title: l.title,
+            description: l.description,
+            notes: l.notes,
+            duration: totalDurationForLesson,
+            type: l.type,
+            contentUrl: l.contentUrl,
+            files: l.files,
+            lessonProgress: l.progressRecords,
+          };
+        }),
+      };
+    }),
   };
 };
 
@@ -1410,6 +1583,56 @@ const getCartCourses = async (req: Request) => {
   return formatCourseData(getCourseDetails);
 };
 
+const updateLessonProgress = async (req: Request) => {
+  const userId = req.params.userId as string;
+  const { courseId, lessonId, progressValue, lastPosition, isFinished } = req.body as {
+    courseId: string;
+    lessonId: string;
+    progressValue: number;
+    lastPosition: number;
+    isFinished: boolean;
+  };
+
+  if (!userId) {
+    throw new Error('User not found');
+  }
+  if (!courseId) {
+    throw new Error('Course Id not found');
+  }
+  if (!lessonId) {
+    throw new Error('Lesson Id not found');
+  }
+
+  const updateData = await executeDbOperation(async prisma => {
+    return await prisma.lessonProgress.upsert({
+      where: {
+        userId_lessonId: { userId, lessonId },
+      },
+      update: {
+        progressValue,
+        lastViewedAt: new Date(),
+        completed: isFinished,
+        completedAt: isFinished ? new Date() : undefined,
+      },
+      create: {
+        userId,
+        lessonId,
+        courseId,
+        progressValue,
+        lastPosition,
+        completed: isFinished,
+        completedAt: isFinished ? new Date() : null,
+        lastViewedAt: new Date(),
+      },
+    });
+  });
+
+  if (!updateData.id) {
+    throw new Error('Failed to update lesson for lessonProgress');
+  }
+  return lessonId;
+};
+
 const getBunnySignature = async (req: Request) => {
   const { collectionName, fileName } = req.query as { collectionName: string; fileName: string };
   const apiKey = config.BUNNY_STREAM_API_KEY;
@@ -1496,7 +1719,7 @@ const createFileToBunny = async (req: Request) => {
   const fileName = `${timestamp}-${uniqueId}-${req.file?.originalname}`;
   const storageZone = config.BUNNY_STORAGE_ZONE_USERNAME;
   const accessKey = config.BUNNY_STORAGE_ZONE_PASSWORD;
-  const pullZone = config.BUNNY_PULL_ZONE;
+  // const pullZone = config.BUNNY_PULL_ZONE;
   const safePath = encodeURI(folder.replace(/^\/+|\/+$/g, '').replace(/\/+/g, '/'));
 
   const uploadfile = await fetch(`https://${HOSTNAME}/${storageZone}/${safePath}/${fileName}`, {
@@ -1511,8 +1734,7 @@ const createFileToBunny = async (req: Request) => {
     const errorText = await uploadfile.text();
     throw new Error(`Bunny Storage API Error: ${errorText}`);
   }
-
-  return `https://${pullZone}/${safePath}/${fileName}`;
+  return `https://sg.storage.bunnycdn.com/${storageZone}/${safePath}/${fileName}`;
 };
 
 const getVideo = async (req: Request) => {
@@ -1576,11 +1798,33 @@ const deleteVideo = async (req: Request) => {
   return false;
 };
 
+const deleteFile = async (req: Request) => {
+  const { fileUrl } = req.body as { fileUrl: string };
+  if (!fileUrl) {
+    throw new Error('File path not provided');
+  }
+
+  const response = await fetch(fileUrl, {
+    method: 'DELETE',
+    headers: {
+      AccessKey: config.BUNNY_STORAGE_ZONE_PASSWORD,
+      accept: 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    return false;
+  }
+
+  return true;
+};
+
 export const courseService = {
   isCourseSlugAvailable,
   createCourse,
   updateCourse,
   getAllCoursesForInstructor,
+  getAllCoursesForStudent,
   getAllCoursesForPublic,
   getCategories,
   getCourseInstructors,
@@ -1591,8 +1835,10 @@ export const courseService = {
   getSingleCourseForPublicView,
   getSingleCourseForPaidView,
   getSingleCourseForInstructorEdit,
+  updateLessonProgress,
   getCartCourses,
   deleteVideo,
   getVideo,
+  deleteFile,
   getSecureVideoToken,
 };
