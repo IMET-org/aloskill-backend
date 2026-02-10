@@ -311,7 +311,7 @@ const getAllInstructors = async () => {
   return [
     ...instructors.map(instructor => ({
       id: instructor.userId,
-      avaterUrl: instructor.user.avatarUrl,
+      avatarUrl: instructor.user.avatarUrl,
       role: instructor.user.assignedRole.map(role => role.role),
       skills: instructor.skills.map(s => s.skill),
       displayName: instructor.displayName,
