@@ -673,6 +673,9 @@ const getAllCoursesForStudent = async (req: Request) => {
         title: true,
         thumbnailUrl: true,
         LessonProgress: {
+          where: {
+            userId: userExist.id
+          },
           select: {
             completed: true,
             progressValue: true,
@@ -695,6 +698,12 @@ const getAllCoursesForStudent = async (req: Request) => {
           select: {
             enrollments: true,
             reviews: true,
+            LessonProgress:{
+              where: {
+                userId: userExist.id
+              }
+            },
+            courseInstructors: true
           },
         },
         modules: {
