@@ -1550,6 +1550,119 @@ const getSingleCourseForInstructorEdit = async (req: Request) => {
   return formatCourseData(getCourseDetails);
 };
 
+const getInstructorDashboardData = async(req: Request)=>{
+  const userId = req.query.userId as string;
+  if(!userId){
+    throw new Error("User not Found for Dashboard Data");
+  };
+
+  const instructorData = await executeDbOperation(async (prisma) => {
+    const primaryInstructor = await prisma.instructorProfile.findUnique({
+      where: { userId },
+      select: { id: true, displayName: true, ratingAverage: true }
+    });
+
+    if (!primaryInstructor) {throw new Error("Instructor profile not found");}
+
+    const ownedCourses = await prisma.course.findMany({
+      where: { createdById: primaryInstructor.id },
+      select: { id: true }
+    });
+
+    const ownedCourseIds = ownedCourses.map(c => c.id);
+
+    const otherInstructors = await prisma.courseInstructor.groupBy({
+      by: ['instructorId'],
+      where: {
+        courseId: { in: ownedCourseIds },
+        instructorId: { not: primaryInstructor.id }
+      }
+    });
+
+    const totalOtherInstructors = otherInstructors.length;
+
+    const [stats, recentActivity, reviews, courseOverview] = await Promise.all([
+      prisma.course.aggregate({
+        where: { createdById: primaryInstructor.id, deletedAt: null },
+        _count: { id: true },
+        _sum: { enrollmentCount: true },
+      }),
+
+      prisma.auditLog.findMany({
+        where: {
+          OR: [
+            { userId },
+            {
+              entityType: { in: ['course', 'enrollment', 'payout'] },
+              entityId: { in: ownedCourseIds }
+            }
+          ]
+        },
+        orderBy: { timestamp: 'desc' },
+        take: 10,
+        include: {
+          user: {
+            select: {
+              avatarUrl: true,
+              instructorProfile: { select: { displayName: true } },
+              studentProfile: { select: { displayName: true } }
+            },
+          },
+        },
+      }),
+
+      prisma.review.findMany({
+        where: { course: { createdById: primaryInstructor.id } },
+        orderBy: { createdAt: 'desc' },
+        take: 4,
+        include: {
+          user: { select: { avatarUrl: true, studentProfile: { select: { displayName: true } } } }
+        }
+      }),
+
+      prisma.course.findMany({
+        where: { createdById: primaryInstructor.id, deletedAt: null },
+        select: {
+          title: true,
+          enrollmentCount: true,
+          ratingAverage: true,
+          status: true,
+        },
+        orderBy: { enrollmentCount: 'desc' },
+        take: 5
+      })
+    ]);
+
+    const totalStudentsCount = await prisma.enrollment.count({
+      where: { course: { createdById: primaryInstructor.id } },
+    });
+
+    return {
+      profile: {
+        name: primaryInstructor.displayName,
+        overallRating: primaryInstructor.ratingAverage,
+      },
+      counters: {
+        totalCourses: stats._count.id,
+        totalEnrolled: stats._sum.enrollmentCount ?? 0,
+        totalStudents: totalStudentsCount,
+        totalOtherInstructors,
+      },
+      recentActivity,
+      reviews : reviews.map(review => ({
+        rating: review.rating,
+        body: review.body,
+        createdAt: review.createdAt,
+        userDisplayName: review.user.studentProfile?.displayName,
+        avatarUrl: review.user.avatarUrl,
+      })),
+      courseOverview
+    };
+  }, "Fetch Instructor Dashboard Data");
+
+  return instructorData;
+};
+
 const getCartCourses = async (req: Request) => {
   const courseIds = req.body as string[];
   if (courseIds.length === 0) {
@@ -1837,6 +1950,7 @@ export const courseService = {
   getAllCoursesForPublic,
   getCategories,
   getCourseInstructors,
+  getInstructorDashboardData,
   getCourseTags,
   getBunnySignature,
   createFileToBunny,
