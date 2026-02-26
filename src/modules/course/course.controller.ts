@@ -47,6 +47,11 @@ const getSingleCourseForInstructorEdit = catchAsync(async (req, res): Promise<vo
   ResponseHandler.ok(res, 'Course fetched successfully for instructor edit!', result);
 });
 
+const getInstructorDashboardData = catchAsync(async (req, res): Promise<void> => {
+  const result = await courseService.getInstructorDashboardData(req);
+  ResponseHandler.ok(res, 'Dashboard Data fetched successfully!', result);
+});
+
 const updateLessonProgress = catchAsync(async (req, res): Promise<void> => {
   const result = await courseService.updateLessonProgress(req);
   ResponseHandler.ok(res, 'Course Updated successfully', result);
@@ -172,6 +177,7 @@ export const courseController = {
   getAllCoursesForInstructor,
   getAllCoursesForStudent,
   getAllCoursesForPublic,
+  getInstructorDashboardData,
   getCategories,
   checkCourseSlugAvailability,
   getCourseInstructors,

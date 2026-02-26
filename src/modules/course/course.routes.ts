@@ -80,6 +80,12 @@ router.get(
   courseController.getCourseInstructors
 );
 
+router.get(
+  '/instructorDashboard',
+  requireInstructor,
+  courseController.getInstructorDashboardData
+);
+
 router.get('/tags', instructorQueryLimiter, requireInstructor, courseController.getCourseTags);
 
 router.post('/bunny-signature', requireInstructor, courseController.getBunnySignature);
